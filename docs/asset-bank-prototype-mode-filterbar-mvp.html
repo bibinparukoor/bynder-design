@@ -2240,6 +2240,11 @@
   inFilter.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
     cb.addEventListener('change', renderInPills);
   });
+  // Belt-and-suspenders: also fire on click of the label row so the chip
+  // label updates even if the change event doesn't bubble in all contexts.
+  inFilter.querySelectorAll('label.sr-sub-check-row').forEach((lbl) => {
+    lbl.addEventListener('click', () => setTimeout(renderInPills, 0));
+  });
 
   // Close "In" dropdown on outside click (handled by closeAllFilters already),
   // also close on Escape while open
@@ -2429,6 +2434,14 @@
     }
     if (frameEl.classList.contains('serp-open')) {
       if (e.key === 'Escape') closeSerp();
+      return;
+    }
+    if (e.key === 'Enter') {
+      const query = placeholder.value.trim();
+      if (query.length >= 2 && searchShell.classList.contains('results-open')) {
+        e.preventDefault();
+        openSerp(query);
+      }
       return;
     }
     if (e.key === 'Escape') {
