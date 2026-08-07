@@ -2207,13 +2207,16 @@
 
   function renderInPills() {
     const checked = Array.from(inFilter.querySelectorAll('input[type="checkbox"]:checked'));
-    inPillsEl.innerHTML = checked.map((cb) =>
+    // Pills only materialise in the sticky search bar (SERP open).
+    // In Spotlight the Where chip label is the only signal.
+    const inSerp = frameEl.classList.contains('serp-open');
+    inPillsEl.innerHTML = inSerp ? checked.map((cb) =>
       `<span class="sr-in-pill">
         <span class="pill-abbr">${ABBR[cb.value] || cb.value[0]}</span>
         ${cb.value}
         <button class="pill-remove" data-value="${cb.value}" type="button" aria-label="Remove ${cb.value}">×</button>
       </span>`
-    ).join('');
+    ).join('') : '';
 
     // Sync chip label
     if (checked.length === 0) {
@@ -2361,9 +2364,11 @@
     serpViewTabs.forEach((t, i) => t.classList.toggle('active', i === 0));
     renderSerpResults();
     frameEl.classList.add('serp-open');
+    renderInPills(); // materialise Where pills in sticky search bar
   }
   function closeSerp() {
     frameEl.classList.remove('serp-open');
+    renderInPills(); // clear pills when returning to Spotlight
   }
 
   placeholder.addEventListener('keydown', (e) => {
