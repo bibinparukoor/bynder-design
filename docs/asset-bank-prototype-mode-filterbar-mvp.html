@@ -1912,7 +1912,7 @@
   function renderNavResults(key) {
     const meta = NAV_META[key];
     navResultsTitle.textContent = 'Latest results';
-    navViewAll.textContent = 'View all (' + meta.count + ')';
+    navViewAll.textContent = key === 'guidelines' ? 'View all' : 'View all (' + meta.count + ')';
     navResultsList.innerHTML = Array.from({ length: 6 }, () =>
       '<div class="sr-nav-result-row"><img src="' + RESULT_PHOTOS[Math.floor(Math.random() * RESULT_PHOTOS.length)] + '" alt=""><div class="sr-result-title">' + meta.label + '</div></div>'
     ).join('');
