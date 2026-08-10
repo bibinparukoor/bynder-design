@@ -1,5 +1,5 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
-<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Prototype of the Discover filter panel. Type and Orientation are both single-select radio groups with an explicit All option, since both are mutually exclusive per-asset properties.</h2>
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Prototype of the Discover filter panel. Type and Orientation are single-select radio groups with an explicit All option. The extension flyout's Reset button is disabled until an extension has been excluded.</h2>
 <style>
 .bd-panel *{box-sizing:border-box;font-family:'Inter',sans-serif;}
 .bd-row{display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;cursor:pointer;color:#4f5867;font-size:14px;min-width:0;}
@@ -31,6 +31,8 @@
 .bd-search::placeholder{color:#9a9fa8;}
 .bd-clear{border:none !important;background:transparent !important;color:#126dfe !important;-webkit-text-fill-color:#126dfe !important;font-size:14px !important;font-weight:500 !important;font-family:'Inter',sans-serif !important;padding:4px 6px !important;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none;opacity:1 !important;}
 .bd-clear:hover{text-decoration:underline;}
+.bd-clear:disabled{color:#b8bcc2 !important;-webkit-text-fill-color:#b8bcc2 !important;cursor:not-allowed;text-decoration:none;}
+.bd-clear:disabled:hover{text-decoration:none;}
 </style>
 <div class="bd-panel" style="position:relative;background:#fff;border-radius:6px;box-shadow:0px 0px 0px 1px rgba(3,16,38,0.1),0px 2px 8px -1px rgba(3,16,38,0.15);padding:8px 0;display:flex;max-width:940px;overflow-x:auto;">
   <div style="width:224px;min-width:224px;">
@@ -273,7 +275,10 @@ function renderFlyoutList(){
   var term = searchTerm.trim().toLowerCase();
   var exts = cat.exts.filter(function(e){ return e.code.toLowerCase().indexOf(term)>-1; });
 
-  document.getElementById('tfClearBtn').style.display = 'inline-block';
+  var stats = extStats(cat);
+  var clearBtn = document.getElementById('tfClearBtn');
+  clearBtn.style.display = 'inline-block';
+  clearBtn.disabled = stats.allChecked || stats.totalItems===0;
 
   if(exts.length===0){
     var empty = document.createElement('div');
