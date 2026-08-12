@@ -1,12 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Discover filter panel prototype - Type &amp; Orientation</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
-<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Prototype of the Discover filter panel. Type and Orientation are single-select radio groups with an explicit All option. The extension flyout only lists extensions that actually have files, zero-count extensions are hidden rather than shown disabled.</h2>
 <style>
+body{margin:0;padding:24px;background:#f3f3f4;font-family:'Inter',sans-serif;}
 .bd-panel *{box-sizing:border-box;font-family:'Inter',sans-serif;}
 .bd-row{display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;cursor:pointer;color:#4f5867;font-size:14px;min-width:0;}
 .bd-row:hover{background:rgba(3,16,38,0.05);color:#212c40;}
 .bd-row.open{background:rgba(3,16,38,0.05);color:#212c40;}
 .bd-row.disabled{color:#8b919b;cursor:not-allowed;}
 .bd-row.disabled:hover{background:transparent;color:#8b919b;}
+.bd-row.all-row{border-bottom:1px solid rgba(3,16,38,0.1);}
 .bd-sec{padding:12px 16px 8px;font-size:14px;font-weight:500;color:#212c40;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bd-label{flex:1 1 0%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bd-cb{appearance:none;width:16px;height:16px;border-radius:6px;border:2px solid rgba(3,16,38,0.28);background:#fff;position:relative;flex-shrink:0;cursor:pointer;pointer-events:none;}
@@ -27,13 +33,15 @@
 .bd-select{display:flex;align-items:center;justify-content:space-between;gap:8px;height:32px;padding:0 8px;border:1px solid rgba(3,16,38,0.17);border-radius:6px;background:#fff;font-size:14px;color:#212c40;min-width:0;}
 .bd-select span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .bd-input{display:flex;align-items:center;height:32px;padding:0 12px;border:1px solid rgba(3,16,38,0.17);border-radius:6px;background:#fff;font-size:14px;color:#8b919b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-.bd-search{width:100%;height:32px;padding:0 10px 0 32px;border:1px solid rgba(3,16,38,0.17);border-radius:6px;background:#fff !important;color:#212c40 !important;outline:none;-webkit-text-fill-color:#212c40;}
+.bd-search{width:100%;height:32px;padding:0 10px 0 32px;border:1px solid rgba(3,16,38,0.17);border-radius:6px;background:#fff !important;color:#212c40 !important;outline:none;-webkit-text-fill-color:#212c40;box-sizing:border-box;font-family:'Inter',sans-serif;font-size:14px;}
 .bd-search::placeholder{color:#9a9fa8;}
-.bd-clear{border:none !important;background:transparent !important;color:#126dfe !important;-webkit-text-fill-color:#126dfe !important;font-size:14px !important;font-weight:500 !important;font-family:'Inter',sans-serif !important;padding:4px 6px !important;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none;opacity:1 !important;}
+.bd-clear{border:none !important;background:transparent !important;color:#126dfe !important;-webkit-text-fill-color:#126dfe !important;font-size:14px !important;font-weight:500 !important;font-family:'Inter',sans-serif !important;padding:4px 6px !important;cursor:pointer;white-space:nowrap;flex-shrink:0;opacity:1 !important;}
 .bd-clear:hover{text-decoration:underline;}
 .bd-clear:disabled{color:#b8bcc2 !important;-webkit-text-fill-color:#b8bcc2 !important;cursor:not-allowed;text-decoration:none;}
 .bd-clear:disabled:hover{text-decoration:none;}
 </style>
+</head>
+<body>
 <div class="bd-panel" style="position:relative;background:#fff;border-radius:6px;box-shadow:0px 0px 0px 1px rgba(3,16,38,0.1),0px 2px 8px -1px rgba(3,16,38,0.15);padding:8px 0;display:flex;max-width:940px;overflow-x:auto;">
   <div style="width:224px;min-width:224px;">
     <div class="bd-sec">Type</div>
@@ -104,10 +112,10 @@
           <span class="bd-chev" data-icon="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);"></span>
           <input id="tfSearch" class="bd-search" placeholder="Search" />
         </div>
-        <button id="tfClearBtn" class="bd-clear" type="button">Reset</button>
+        <button id="tfClearBtn" class="bd-clear" type="button">Clear</button>
       </div>
     </div>
-    <div id="tfFlyoutList" style="max-height:236px;overflow-y:auto;padding:4px 0 8px;background:#fff;"></div>
+    <div id="tfFlyoutList" style="max-height:236px;overflow-y:auto;padding:0 0 8px;background:#fff;"></div>
   </div>
 </div>
 <script>
@@ -143,9 +151,9 @@ var searchTerm = '';
 function catTotal(cat){ return cat.exts.reduce(function(a,e){return a+e.count;},0); }
 function nonZero(cat){ return cat.exts.filter(function(e){return e.count>0;}); }
 function isExtSelected(catId,code){ return !!(extSelected[catId] && extSelected[catId][code]); }
-function setExtSelected(catId,code,val){
+function toggleExt(catId,code){
   if(!extSelected[catId]) extSelected[catId]={};
-  extSelected[catId][code]=val;
+  extSelected[catId][code] = !extSelected[catId][code];
 }
 function extStats(cat){
   var nz = nonZero(cat);
@@ -154,15 +162,13 @@ function extStats(cat){
     totalItems: nz.length,
     checkedItems: checked.length,
     checkedSum: checked.reduce(function(a,e){return a+e.count;},0),
-    allChecked: nz.length>0 && checked.length===nz.length
+    isAll: checked.length===0
   };
 }
 function selectType(catId){
-  var cat = data.filter(function(c){return c.id===catId;})[0];
   selectedType = catId;
   extSelected = {};
   extSelected[catId] = {};
-  nonZero(cat).forEach(function(e){ extSelected[catId][e.code] = true; });
 }
 function grandTotal(){ return data.reduce(function(a,c){return a+catTotal(c);},0); }
 
@@ -195,7 +201,7 @@ function renderList(){
     var disabledCat = catTotal(cat)===0;
     var isSelected = selectedType===cat.id;
     var stats = extStats(cat);
-    var narrowed = isSelected && !stats.allChecked && stats.totalItems>0;
+    var narrowed = isSelected && !stats.isAll && stats.totalItems>0;
 
     var row = document.createElement('div');
     row.className = 'bd-row' + (disabledCat?' disabled':'') + (openCat===cat.id?' open':'');
@@ -273,12 +279,39 @@ function renderFlyoutList(){
   var container = document.getElementById('tfFlyoutList');
   container.innerHTML = '';
   var term = searchTerm.trim().toLowerCase();
-  var exts = nonZero(cat).filter(function(e){ return e.code.toLowerCase().indexOf(term)>-1; });
-
   var stats = extStats(cat);
+
   var clearBtn = document.getElementById('tfClearBtn');
-  clearBtn.style.display = 'inline-block';
-  clearBtn.disabled = stats.allChecked || stats.totalItems===0;
+  clearBtn.disabled = stats.checkedItems <= 2;
+
+  var allRow = document.createElement('div');
+  allRow.className = 'bd-row all-row';
+  var allCb = document.createElement('input');
+  allCb.type = 'checkbox';
+  allCb.className = 'bd-cb';
+  allCb.style.pointerEvents = 'auto';
+  allCb.checked = stats.isAll;
+  allCb.addEventListener('click', function(e){
+    e.stopPropagation();
+    extSelected[cat.id] = {};
+    renderFlyoutList();
+    renderList();
+  });
+  var allLabel = document.createElement('span');
+  allLabel.className = 'bd-label';
+  allLabel.style.fontSize = '13px';
+  allLabel.textContent = 'All';
+  var allCount = document.createElement('span');
+  allCount.className = 'bd-count';
+  allCount.style.fontSize = '13px';
+  allCount.textContent = catTotal(cat);
+  allRow.appendChild(allCb);
+  allRow.appendChild(allLabel);
+  allRow.appendChild(allCount);
+  allRow.addEventListener('click', function(){ allCb.click(); });
+  container.appendChild(allRow);
+
+  var exts = nonZero(cat).filter(function(e){ return e.code.toLowerCase().indexOf(term)>-1; });
 
   if(exts.length===0){
     var empty = document.createElement('div');
@@ -302,7 +335,7 @@ function renderFlyoutList(){
     cb.checked = isExtSelected(cat.id, ex.code);
     cb.addEventListener('click', function(e){
       e.stopPropagation();
-      setExtSelected(cat.id, ex.code, !isExtSelected(cat.id, ex.code));
+      toggleExt(cat.id, ex.code);
       renderFlyoutList();
       renderList();
     });
@@ -333,7 +366,7 @@ document.getElementById('tfSearch').addEventListener('input', function(e){
 document.getElementById('tfClearBtn').addEventListener('click', function(e){
   e.stopPropagation();
   if(!openCat) return;
-  selectType(openCat);
+  extSelected[openCat] = {};
   renderFlyoutList();
   renderList();
 });
@@ -352,3 +385,5 @@ document.addEventListener('keydown', function(e){
 renderList();
 })();
 </script>
+</body>
+</html>
