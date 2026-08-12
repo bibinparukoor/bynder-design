@@ -1178,17 +1178,18 @@
             <div class="sr-result-list" data-mode="nl"></div>
             <div class="sr-result-list" data-mode="keyword"></div>
           </div>
-          <!-- Tag + Metaproperty suggestions — only within Assets view -->
-          <div class="sr-suggestions" id="srSuggestions" style="display:none;">
-            <div class="sr-divider" style="margin:0;"></div>
-            <div class="sr-suggestion-row" id="srTagRow">
-              <span class="sr-suggestion-label">Tags</span>
-              <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srTagChips"></div></div>
-            </div>
-            <div class="sr-suggestion-row" id="srMetaRow">
-              <span class="sr-suggestion-label">Metaproperties</span>
-              <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srMetaChips"></div></div>
-            </div>
+        </div>
+
+        <!-- Tag + Metaproperty suggestions — shown in both idle (assets chip) and results (assets category) -->
+        <div class="sr-suggestions" id="srSuggestions" style="display:none;">
+          <div class="sr-divider" style="margin:0;"></div>
+          <div class="sr-suggestion-row" id="srTagRow">
+            <span class="sr-suggestion-label">Tags</span>
+            <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srTagChips"></div></div>
+          </div>
+          <div class="sr-suggestion-row" id="srMetaRow">
+            <span class="sr-suggestion-label">Metaproperties</span>
+            <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srMetaChips"></div></div>
           </div>
         </div>
 
@@ -1912,7 +1913,7 @@
   function renderNavResults(key) {
     const meta = NAV_META[key];
     navResultsTitle.textContent = 'Latest results';
-    navViewAll.textContent = key === 'guidelines' ? 'View all' : 'View all (' + meta.count + ')';
+    navViewAll.textContent = (key === 'guidelines' || key === 'collections') ? 'View all' : 'View all (' + meta.count + ')';
     navResultsList.innerHTML = Array.from({ length: 6 }, () =>
       '<div class="sr-nav-result-row"><img src="' + RESULT_PHOTOS[Math.floor(Math.random() * RESULT_PHOTOS.length)] + '" alt=""><div class="sr-result-title">' + meta.label + '</div></div>'
     ).join('');
@@ -1936,6 +1937,7 @@
       }
       syncQuicknavChips();
       updateInFilterVisibility();
+      renderSuggestionChips();
     });
   });
 
@@ -1984,7 +1986,8 @@
     const tagChipsEl   = document.getElementById('srTagChips');
     const metaChipsEl  = document.getElementById('srMetaChips');
     if (!suggestionsEl) return;
-    const show = activeCategory === 'assets' && isResultsContext();
+    const idleAssets = resultsMenu.dataset.view === 'idle' && idleNavKey === 'assets';
+    const show = (activeCategory === 'assets' && isResultsContext()) || idleAssets;
     suggestionsEl.style.display = show ? '' : 'none';
     if (!show) return;
 
@@ -2022,7 +2025,7 @@
     if (activeCategory) {
       const label = activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1);
       if (resultsTitle) resultsTitle.textContent = label;
-      viewAll.textContent = 'View all (' + CATEGORIES[activeCategory].count + ')';
+      viewAll.textContent = activeCategory === 'guidelines' ? 'View all' : 'View all (' + CATEGORIES[activeCategory].count + ')';
       viewAll.classList.add('visible');
     } else {
       if (resultsTitle) resultsTitle.textContent = 'Top Results';

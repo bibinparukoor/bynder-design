@@ -1179,13 +1179,14 @@
             <div class="sr-result-list" data-mode="nl"></div>
             <div class="sr-result-list" data-mode="keyword"></div>
           </div>
-          <!-- Tag + Metaproperty suggestions — only within Assets view -->
-          <div class="sr-suggestions" id="srSuggestions" style="display:none;">
-            <div class="sr-divider" style="margin:0;"></div>
-            <div class="sr-suggestion-row" id="srTagRow">
-              <span class="sr-suggestion-label">Tags</span>
-              <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srTagChips"></div></div>
-            </div>
+        </div>
+
+        <!-- Tag suggestions — shown in both idle (assets chip) and results (assets category) -->
+        <div class="sr-suggestions" id="srSuggestions" style="display:none;">
+          <div class="sr-divider" style="margin:0;"></div>
+          <div class="sr-suggestion-row" id="srTagRow">
+            <span class="sr-suggestion-label">Tags</span>
+            <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srTagChips"></div></div>
           </div>
         </div>
 
@@ -1939,6 +1940,7 @@
       }
       syncQuicknavChips();
       updateInFilterVisibility();
+      renderSuggestionChips();
     });
   });
 
@@ -1986,7 +1988,8 @@
     const suggestionsEl = document.getElementById('srSuggestions');
     const tagChipsEl   = document.getElementById('srTagChips');
     if (!suggestionsEl) return;
-    const show = activeCategory === 'assets' && isResultsContext();
+    const idleAssets = resultsMenu.dataset.view === 'idle' && idleNavKey === 'assets';
+    const show = (activeCategory === 'assets' && isResultsContext()) || idleAssets;
     suggestionsEl.style.display = show ? '' : 'none';
     if (!show) return;
 
