@@ -1,0 +1,2521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Asset Bank — Unified Vision</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #e8e9eb;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+  }
+
+  .frame {
+    position: relative;
+    width: 1280px;
+    height: 832px;
+    overflow: hidden;
+    background: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 4px 24px rgba(3,16,38,0.12);
+  }
+
+  img { display: block; max-width: none; }
+  button { font-family: inherit; border: none; background: none; cursor: pointer; }
+  a { text-decoration: none; color: inherit; }
+
+  /* ---------- Header ---------- */
+  .header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 1;
+    background: #ffffff;
+    box-shadow: 0px 1px 0px 0px rgba(0,0,0,0.1), 0px 2px 6px -1px rgba(0,34,51,0.15);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 48px;
+    width: 100%;
+  }
+  .main-header .spacer { flex: 1; height: 40px; }
+
+  /* Search shell wraps the input row + its results dropdown so the two can
+     share one seamless rounded card + border when open. */
+  .search-shell {
+    position: relative;
+    width: 600px;
+    z-index: 26;
+    border-radius: 12px;
+  }
+
+  .search-input {
+    position: relative;
+    width: 600px;
+    height: 40px;
+    background: #ffffff;
+    border: 1px solid rgba(3,16,38,0.17);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  /* When the results dropdown is open, the input's bottom edge and the
+     dropdown's top edge butt together with matching side borders so the
+     whole thing reads as one seamless card (no "hinge" seam on the right). */
+  .search-shell.results-open .search-input {
+    border-radius: 16px 16px 0 0;
+    border: 1px solid rgba(3,16,38,0.1);
+    border-bottom: none;
+  }
+  .search-shell.results-open.nl-active .search-input {
+    border: 2px solid #7c3aed;
+    border-bottom: none;
+  }
+  .search-input .icon { width: 24px; height: 24px; flex-shrink: 0; }
+  .search-input .placeholder {
+    flex: 1;
+    width: 100%;
+    font-size: 16px;
+    line-height: 20px;
+    color: #212c40;
+    padding: 2px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+  }
+  .search-input .placeholder::placeholder { color: #8b919b; }
+
+  .sr-in-pills { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .sr-in-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 6px 0 5px;
+    background: #DAE8FF; border: 1px solid #94BDFF;
+    border-radius: 6px; flex-shrink: 0;
+    font-size: 12px; font-weight: 500; color: #0D51BC;
+    white-space: nowrap;
+  }
+  .sr-in-pill .pill-abbr {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 3px;
+    background: #126DFE; color: #fff; font-size: 10px; font-weight: 700;
+  }
+  .sr-in-pill .pill-remove {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: #126DFE; font-size: 13px; line-height: 1;
+    display: flex; align-items: center; margin-left: 2px;
+    opacity: 0.7;
+  }
+  .sr-in-pill .pill-remove:hover { opacity: 1; }
+
+  .sr-clear {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #212c40; color: #fff; font-size: 13px; line-height: 1;
+    flex-shrink: 0;
+  }
+  .search-shell.results-open .sr-clear { display: flex; }
+
+  /* Results dropdown (Recent searches / Quick nav / loading skeleton) —
+     absolutely positioned so it overlays the page instead of pushing the
+     nav/filter rows down. */
+  .search-results-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid rgba(3,16,38,0.1);
+    border-top: none;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0px 12px 32px rgba(3,16,38,0.18);
+    overflow: clip; /* clip = visual clip without blocking absolute-positioned children */
+  }
+  .search-shell.results-open .search-results-menu { display: block; }
+  .search-shell.results-open.nl-active .search-results-menu {
+    border: 2px solid #7c3aed;
+    border-top: none;
+  }
+
+  /* Dimmed backdrop behind the expanded search (results dropdown open) */
+  .search-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 832px;
+    background: rgba(3,16,38,0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+    z-index: 15;
+  }
+  .header.search-active .search-backdrop { opacity: 1; pointer-events: auto; }
+
+  .sr-filters { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 16px; }
+  .sr-quicknav { display: flex; align-items: center; gap: 8px; }
+  .sr-quicknav-chip:hover { background: rgba(3,16,38,0.08); }
+  .sr-quicknav-chip.active { background: rgba(18,109,254,0.1); color: #126dfe; font-weight: 500; }
+  .sr-quicknav-chip.active:hover { background: rgba(18,109,254,0.16); }
+
+  @keyframes chip-spin { to { transform: rotate(360deg); } }
+  .nav-chip-spinner {
+    width: 14px; height: 14px; margin-right: 5px; flex-shrink: 0;
+    border: 2px solid rgba(3,16,38,0.15);
+    border-top-color: #8B919B;
+    border-radius: 50%;
+    animation: chip-spin 0.7s linear infinite;
+  }
+  .sr-quicknav-chip.loading .nav-chip-spinner { border-top-color: #126dfe; }
+
+  /* Latest-results preview — shown the moment a quick-nav chip is selected,
+     before any search text is typed. Swaps in place of "Recent Searches". */
+  .sr-idle-nav { display: none; }
+  .sr-idle.nav-selected .sr-idle-default { display: none; }
+  .sr-idle.nav-selected .sr-idle-nav { display: block; }
+  .sr-nav-result-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 8px; border-radius: 8px; cursor: pointer;
+  }
+  .sr-nav-result-row:hover { background: #EDEEF0; }
+  .sr-nav-result-row img {
+    width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0;
+    object-fit: cover; background: #f8f8f9;
+  }
+  .sr-nav-result-row .sr-result-title { font-size: 16px; color: #212c40; font-weight: 500; line-height: 20px; }
+  .sr-filter { position: relative; }
+  .sr-filter-chip {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 15px; color: #212c40; padding: 4px 6px; border-radius: 6px;
+    max-width: 160px;
+  }
+  .sr-filter-chip:hover { background: #EDEEF0; }
+  .sr-filter.disabled .sr-filter-chip { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+  .sr-filter.open .sr-filter-chip { background: rgba(3,16,38,0.06); }
+  .sr-filter-chip .sr-filter-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sr-filter-chip.active-filter .sr-filter-label { color: #126dfe; font-weight: 500; }
+  .sr-filter-chip .caret { width: 16px; height: 20px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .sr-filter.open .sr-filter-chip .caret svg { transform: rotate(180deg); }
+  .sr-filter-chip .caret svg { transition: transform .15s; }
+
+  .sr-filter-submenu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 180px;
+    background: #ffffff;
+    border: 1px solid rgba(3,16,38,0.1);
+    border-radius: 10px;
+    box-shadow: 0px 8px 24px rgba(3,16,38,0.15);
+    padding: 6px;
+    z-index: 30;
+  }
+  .sr-filter.open .sr-filter-submenu { display: block; }
+  /* "In" now sits at the far right of the row (Location/Type were swapped
+     for the quick-nav chips), so its submenu needs to hang from the right
+     edge instead of the left — otherwise it overflows off the dropdown. */
+  .sr-filter[data-filter="in"] .sr-filter-submenu { left: auto; right: 0; }
+
+  .sr-sub-search { padding: 4px; margin-bottom: 2px; }
+  .sr-sub-search input {
+    width: 100%; font-family: inherit; font-size: 14px; color: #212c40;
+    border: 1px solid rgba(3,16,38,0.15); border-radius: 6px;
+    padding: 6px 8px; outline: none;
+  }
+  .sr-sub-title { font-size: 12px; font-weight: 600; color: #4f5867; padding: 6px 8px 4px; }
+
+  .sr-sub-item, .sr-sub-check-row, .sr-sub-radio-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 6px;
+    font-size: 14px; color: #212c40; cursor: pointer;
+  }
+  .sr-sub-item:hover, .sr-sub-check-row:hover, .sr-sub-radio-row:hover { background: #EDEEF0; }
+  .sr-sub-item span:first-child { flex: 1; white-space: nowrap; }
+  .sr-sub-item .sub-check { width: 16px; height: 16px; flex-shrink: 0; opacity: 0; }
+  .sr-sub-item.selected .sub-check { opacity: 1; }
+  .sr-sub-check-row input, .sr-sub-radio-row input { width: 16px; height: 16px; accent-color: #126dfe; flex-shrink: 0; }
+
+  .sr-divider { height: 1px; background: rgba(3,16,38,0.08); }
+
+  .sr-section { padding: 12px 16px; }
+  .sr-section-title { font-size: 13px; font-weight: 600; color: #212c40; padding: 0 8px 6px; }
+  .sr-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px; border-radius: 8px; cursor: pointer;
+  }
+  .sr-item:hover { background: #EDEEF0; }
+  .sr-item .sr-icon {
+    width: 20px; height: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sr-item .sr-nav-icon {
+    width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;
+    background: rgba(3,16,38,0.05);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sr-item .sr-nav-icon img { width: 20px; height: 20px; }
+  .sr-item .sr-label { flex: 1; font-size: 15px; color: #212c40; }
+  .sr-item .sr-trailing { width: 16px; height: 16px; flex-shrink: 0; opacity: .45; }
+  .sr-item .sr-trailing img { width: 16px; height: 16px; }
+
+  .sr-skeleton { display: none; padding: 12px 16px; }
+  .sr-results { display: none; }
+  .sr-image-upload { display: none; }
+
+  /* Single state switch for the whole dropdown body: idle (Recent/Quick nav),
+     loading (skeleton), results (text-search results), image-upload
+     (Search-by-image empty state), image-results (image search results). */
+  .sr-idle { display: none; }
+  .search-results-menu[data-view="idle"] .sr-idle { display: block; }
+  .search-results-menu[data-view="loading"] .sr-skeleton { display: block; }
+  .search-results-menu[data-view="results"] .sr-results { display: block; }
+  .search-results-menu[data-view="image-upload"] .sr-image-upload { display: block; }
+  .search-results-menu[data-view="image-results"] .sr-results { display: block; }
+
+  /* Location/Type/In only make sense once there's something to filter — hide
+     the filter row (and its divider) on the empty "search by image" state. */
+  .search-results-menu[data-view="image-upload"] .sr-filters,
+  .search-results-menu[data-view="image-upload"] > .sr-divider { display: none; }
+
+  /* Image search re-uses .sr-results (filters + result list) but hides the
+     category chips and shows the selected-image chip instead. It also always
+     renders the Keyword-style row (mixed thumbnails, plain badges) since an
+     image search returns visual matches, not an AI explanation. */
+  /* Image search only ever returns assets, so the category chips (which
+     would otherwise read as filters across all three types) are hidden
+     for that one view — "In" stays, since it's unrelated to category. */
+  .search-results-menu[data-view="image-results"] .sr-quicknav { display: none; }
+  .search-results-menu[data-view="image-results"] .sr-result-list[data-mode="keyword"] { display: block; }
+  .search-results-menu[data-view="image-results"] .sr-result-list[data-mode="nl"] { display: none; }
+
+  .sr-section-title-row { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 6px; }
+  .sr-section-title-row .sr-section-title { padding: 0; }
+  .sr-view-all { display: none; font-size: 13px; color: #126dfe; cursor: pointer; }
+  .sr-view-all:hover { text-decoration: underline; }
+  .sr-view-all.visible { display: block; }
+
+  .sr-count-chips { display: none; }
+  .sr-count-chip {
+    background: rgba(3,16,38,0.05); color: #212c40; font-size: 14px;
+    border-radius: 9999px; padding: 6px 14px; white-space: nowrap; cursor: pointer; border: none;
+  }
+  .sr-count-chip:hover { background: #EDEEF0; }
+  .sr-count-chip.active { background: rgba(18,109,254,0.1); color: #126dfe; font-weight: 500; }
+  .sr-count-chip.active:hover { background: rgba(18,109,254,0.16); }
+
+  .sr-suggestions { padding-bottom: 4px; }
+  .sr-suggestion-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px 2px; }
+  .sr-suggestion-label { font-size: 12px; font-weight: 600; color: #8b919b; flex-shrink: 0; padding-top: 5px; min-width: 88px; }
+  .sr-suggestion-chips-wrap { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+  .sr-suggestion-chips-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 32px;
+    background: linear-gradient(to right, transparent, #fff);
+    pointer-events: none;
+  }
+  .sr-suggestion-chips { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .sr-suggestion-chip {
+    display: inline-flex; align-items: center; height: 28px; padding: 0 12px;
+    background: #F2F3F4; border: 1px solid rgba(3,16,38,0.1); border-radius: 100px;
+    font-size: 13px; color: #212c40; cursor: pointer; white-space: nowrap;
+  }
+  .sr-suggestion-chip:hover { background: #E6E7E9; }
+
+  .sr-result-list { display: none; }
+  .search-results-menu.mode-nl .sr-result-list[data-mode="nl"] { display: block; }
+  .search-results-menu:not(.mode-nl) .sr-result-list[data-mode="keyword"] { display: block; }
+
+  .sr-result-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 8px; border-radius: 8px; cursor: pointer;
+  }
+  .sr-result-row:hover { background: #EDEEF0; }
+  .sr-result-thumb {
+    width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0;
+    object-fit: cover; background: #f8f8f9;
+  }
+  .sr-result-thumb.icon-thumb { display: flex; align-items: center; justify-content: center; background: rgba(3,16,38,0.05); }
+  .sr-result-thumb.icon-thumb img { width: 20px; height: 20px; }
+  .sr-result-text { flex: 1; min-width: 0; }
+  .sr-result-title { font-size: 16px; color: #212c40; font-weight: 500; line-height: 20px; }
+  .sr-result-desc { font-size: 14px; color: #8b919b; line-height: 18px; }
+  .sr-result-trailing { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .sr-explain-pill {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 13px; color: #212c40; white-space: nowrap;
+    border: 1px solid rgba(3,16,38,0.15); border-radius: 9999px; padding: 4px 10px;
+  }
+  .sr-type-badge {
+    font-size: 12px; color: #4f5867; background: rgba(3,16,38,0.05);
+    border-radius: 6px; padding: 4px 8px; white-space: nowrap;
+  }
+  .sr-skel-row { display: flex; align-items: center; gap: 12px; padding: 8px; }
+  .sr-skel-box { width: 32px; height: 32px; border-radius: 6px; background: rgba(3,16,38,0.07); flex-shrink: 0; animation: sr-pulse 1.1s ease-in-out infinite; }
+  .sr-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .sr-skel-line { height: 8px; border-radius: 4px; background: rgba(3,16,38,0.07); animation: sr-pulse 1.1s ease-in-out infinite; }
+  .sr-skel-line.short { width: 55%; }
+  @keyframes sr-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+  .sr-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: #f8f8f9;
+    border-top: 1px solid rgba(3,16,38,0.08);
+    font-size: 13px; color: #4f5867;
+  }
+  .sr-help { display: flex; align-items: center; gap: 6px; }
+  .sr-keys { display: flex; align-items: center; gap: 16px; }
+  .sr-keygroup { display: flex; align-items: center; gap: 4px; }
+  /* Nothing to navigate/select in the upload-link empty state — only "esc
+     Close" is meaningful there. */
+  .search-results-menu[data-view="image-upload"] .sr-kg-navigate,
+  .search-results-menu[data-view="image-upload"] .sr-kg-select { display: none; }
+
+  /* No-results / "did you mean" edge case — jumbled or unrecognized query.
+     CTA differs by mode: Keyword offers to retry with NLS (violet, matches
+     the NLS accent used elsewhere); NLS offers a plain new search (primary
+     blue). Filters stay visible but plain — nothing to filter yet. */
+  .sr-no-results { display: none; padding: 48px 24px 56px; text-align: center; }
+  .search-results-menu[data-view="no-results"] .sr-no-results { display: block; }
+  .sr-no-results-title { font-size: 16px; font-weight: 600; color: #212c40; margin-bottom: 6px; }
+  .sr-no-results-sub { font-size: 14px; color: #4f5867; margin-bottom: 20px; }
+  .sr-no-results-sub strong { color: #212c40; font-weight: 600; }
+  .sr-nr-cta {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; color: #fff; background: #7c3aed;
+  }
+  .sr-nr-cta:hover { background: #6b2fd1; }
+  .sr-nr-cta.nl { background: #126dfe; }
+  .sr-nr-cta.nl:hover { background: #0f5ce0; }
+  .sr-key {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 4px; border-radius: 4px;
+    background: #ffffff; border: 1px solid rgba(3,16,38,0.15);
+    font-size: 11px; color: #4f5867;
+  }
+
+  /* Search mode trigger (Keyword / Natural language) */
+  .search-mode {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 8px 0 10px;
+    border-radius: 9999px;
+    font-size: 14px;
+    color: #4f5867;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background: rgba(3,16,38,0.05);
+    transition: background .12s, color .12s;
+  }
+  .search-mode:hover { background: rgba(3,16,38,0.08); }
+  .search-mode .ai-icon { display: none; }
+  .search-mode .caret { width: 16px; height: 24px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+  .search-mode .caret svg { transition: transform .15s; }
+  .search-input.open .search-mode .caret svg { transform: rotate(180deg); }
+
+  /* Unified mode accent — matches active filter chip blue */
+  .search-mode.unified-mode {
+    background: rgba(18,109,254,0.08);
+    color: #126DFE;
+    font-weight: 500;
+  }
+  .search-mode.unified-mode:hover { background: rgba(18,109,254,0.14); }
+  .search-mode.unified-mode .caret svg path { stroke: #126DFE; }
+
+  /* Natural-language (AI) mode accent */
+  .search-mode.nl-mode {
+    background: rgba(124,58,237,0.08);
+    color: #7c3aed;
+  }
+  .search-mode.nl-mode:hover { background: rgba(124,58,237,0.14); }
+  .search-mode.nl-mode .ai-icon { display: flex; }
+  .search-mode.nl-mode .caret svg path { stroke: #7c3aed; }
+
+  /* Dropdown panel */
+  .search-mode-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 40px;
+    width: 340px;
+    background: #ffffff;
+    border: 1px solid rgba(3,16,38,0.08);
+    border-radius: 16px;
+    box-shadow: 0px 4px 16px rgba(3,16,38,0.12), 0px 1px 2px rgba(3,16,38,0.08);
+    padding: 8px;
+    z-index: 20;
+    display: none;
+  }
+  .search-input.open .search-mode-menu { display: block; }
+  .search-mode-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+  }
+  .search-mode-item:hover { background: #EDEEF0; }
+  .search-mode-item .item-text { display: flex; flex-direction: column; gap: 2px; }
+  .search-mode-item .item-title { font-size: 15px; font-weight: 500; color: #212c40; line-height: 20px; }
+  .search-mode-item .item-desc { font-size: 13px; color: #4f5867; line-height: 18px; }
+  .search-mode-item .item-check { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
+  .search-mode-item.selected .item-check { opacity: 1; }
+
+  .file-placeholder {
+    width: 24px; height: 24px;
+    border-radius: 5px;
+    background: #ffffff;
+    box-shadow: 0 0 0 1px rgba(3,16,38,0.08);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .file-placeholder:hover { background: #EDEEF0; }
+  .file-placeholder:focus-visible { outline: 2px solid rgba(18,109,254,0.5); outline-offset: 1px; }
+  .file-placeholder img { width: 24px; height: 24px; }
+
+  /* ---------- Search by image ---------- */
+  .search-image-header {
+    display: none;
+    position: relative;
+    width: 600px;
+    height: 40px;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid rgba(3,16,38,0.17);
+    border-radius: 12px;
+  }
+  .search-shell.image-mode .search-input { display: none; }
+  .search-shell.image-mode .search-image-header { display: flex; }
+  .search-shell.results-open .search-image-header {
+    border-radius: 16px 16px 0 0;
+    border: 1px solid rgba(3,16,38,0.1);
+    border-bottom: none;
+  }
+  .search-image-header .back-btn {
+    width: 24px; height: 24px; flex-shrink: 0; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .search-image-header .back-btn:hover { background: #EDEEF0; }
+  .search-image-header .back-btn img { width: 18px; height: 18px; }
+  .search-image-header .title { font-size: 16px; color: #212c40; font-weight: 500; }
+
+  .sr-image-upload { padding: 16px; }
+  .sr-image-upload-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .sr-image-upload-title { font-size: 15px; font-weight: 500; color: #212c40; margin-bottom: 4px; }
+  .sr-image-upload-sub { font-size: 13px; color: #8b919b; }
+  .sr-btn-primary-sm {
+    background: #126dfe; color: #fff; font-size: 14px; font-weight: 500;
+    border-radius: 6px; padding: 8px 16px; flex-shrink: 0; white-space: nowrap;
+  }
+  .sr-btn-primary-sm:hover { background: #0f5ed6; }
+  .sr-image-paste-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .sr-image-paste-row input {
+    flex: 1; border: 1px solid rgba(3,16,38,0.15); border-radius: 6px;
+    padding: 8px 10px; font-size: 14px; font-family: inherit; color: #212c40; outline: none;
+  }
+  .sr-btn-secondary-sm {
+    background: rgba(3,16,38,0.05); color: #8b919b; font-size: 14px;
+    border-radius: 6px; padding: 8px 16px; white-space: nowrap;
+  }
+  .sr-btn-secondary-sm:not(:disabled) { background: rgba(18,109,254,0.1); color: #126dfe; cursor: pointer; }
+  .sr-btn-secondary-sm:disabled { cursor: not-allowed; }
+  .sr-image-help-link { display: inline-block; font-size: 13px; color: #126dfe; cursor: pointer; }
+  .sr-image-help-link:hover { text-decoration: underline; }
+
+  .sr-selected-image { display: none; align-items: center; gap: 10px; padding: 12px 16px; }
+  .sr-selected-image-thumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background: #f8f8f9; flex-shrink: 0; }
+  .sr-selected-image-name { flex: 1; font-size: 14px; color: #212c40; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sr-selected-image-clear {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(3,16,38,0.06); color: #4f5867; font-size: 15px;
+  }
+  .sr-selected-image-clear:hover { background: #EDEEF0; }
+  .search-results-menu[data-view="image-results"] .sr-selected-image { display: flex; }
+
+  .header-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+  .icon-btn {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 40px; padding: 0 12px; border-radius: 6px; position: relative;
+  }
+  .icon-btn img { width: 24px; height: 24px; }
+  .icon-btn:hover { background: rgba(3,16,38,0.03); }
+  .notif-dot {
+    position: absolute; top: 8px; right: 8px; width: 8px; height: 8px;
+    border-radius: 50%; background: #f13636; border: 1.5px solid #fff;
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 9999px;
+    background: rgba(3,16,38,0.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 600; color: #212c40;
+  }
+  .user-name { font-size: 14px; color: #212c40; padding: 8px 0; line-height: 1.5; }
+
+  .nav-row, .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 48px;
+    width: 100%;
+  }
+  .nav-left { display: flex; align-items: center; }
+  .logo { width: 111px; height: 40px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 4px;
+    min-height: 40px; padding: 0 12px; border-radius: 6px;
+    font-size: 16px; color: #4f5867; white-space: nowrap;
+  }
+  .nav-btn:hover { background: rgba(3,16,38,0.03); }
+  .nav-btn.active { background: rgba(3,16,38,0.05); color: #212c40; }
+  .nav-btn img { width: 24px; height: 24px; }
+  .nav-btn .caret { width: 16px; height: 24px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+  .nav-right { flex: 1; display: flex; justify-content: flex-end; }
+  .btn-primary {
+    display: flex; align-items: center; gap: 4px;
+    min-height: 40px; padding: 0 12px; border-radius: 6px;
+    background: #126dfe; color: #ffffff; font-size: 16px;
+  }
+  .btn-primary img { width: 24px; height: 24px; }
+
+  .filter-left { display: flex; align-items: center; gap: 0; }
+  .filter-right { flex: 1; display: flex; justify-content: flex-end; }
+  .chip-btn {
+    display: flex; align-items: center; gap: 2px;
+    min-height: 32px; padding: 0 8px; border-radius: 6px;
+    font-size: 14px; color: #4f5867; white-space: nowrap;
+  }
+  .chip-btn:hover { background: rgba(3,16,38,0.03); }
+  .chip-btn img.icon { width: 24px; height: 24px; }
+  .chip-btn .caret { width: 16px; height: 24px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+
+  /* ---------- View options ---------- */
+  .view-options {
+    position: absolute;
+    top: 176px; left: 0; right: 0; height: 80px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 24px 48px;
+  }
+  .view-left { flex: 1; display: flex; align-items: center; gap: 12px; }
+  .view-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+
+  .counter { display: flex; align-items: stretch; }
+  .counter .count {
+    background: #126dfe; color: #fff; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 32px; padding: 0 8px;
+    border-radius: 6px 0 0 6px;
+  }
+  .counter .results {
+    background: rgba(3,16,38,0.03);
+    border: 1px solid rgba(3,16,38,0.17);
+    border-left: none;
+    color: #212c40; font-size: 14px;
+    display: flex; align-items: center; gap: 2px;
+    min-height: 32px; padding: 0 8px;
+    border-radius: 0 6px 6px 0;
+    white-space: nowrap;
+  }
+  .counter .results b { font-weight: 500; font-size: 16px; margin-right: 2px; }
+  .counter .results .caret, .sec-btn .caret { width: 16px; height: 24px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+
+  .sec-btn {
+    background: rgba(3,16,38,0.03);
+    border: 1px solid rgba(3,16,38,0.17);
+    display: flex; align-items: center; gap: 2px;
+    min-height: 32px; padding: 0 8px; border-radius: 6px;
+    font-size: 14px; color: #212c40; white-space: nowrap;
+  }
+  .icon-only-btn {
+    background: rgba(3,16,38,0.03);
+    border: 1px solid rgba(3,16,38,0.17);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 32px; width: 32px; border-radius: 6px;
+  }
+  .icon-only-btn img, .sec-btn img { width: 24px; height: 24px; }
+  .plain-icon-btn {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 32px; width: 32px; border-radius: 6px;
+  }
+  .plain-icon-btn img { width: 24px; height: 24px; }
+
+  .view-toggle {
+    display: flex; height: 32px;
+    border: 1px solid rgba(3,16,38,0.17);
+    border-radius: 6px; overflow: hidden;
+  }
+  .view-toggle .tab {
+    display: flex; align-items: center; padding: 0 6px; height: 100%;
+  }
+  .view-toggle .tab.active { background: #126dfe; }
+  .view-toggle .tab img { width: 24px; height: 24px; }
+
+  /* ---------- Grid ---------- */
+  .grid {
+    position: absolute;
+    top: 256px; left: 0; right: 0;
+    padding: 24px;
+    display: flex; flex-wrap: wrap; gap: 16px;
+    justify-content: center; align-content: flex-start;
+  }
+
+  .card {
+    width: 248px; height: 228px;
+    background: #ffffff;
+    border: 1px solid rgba(3,16,38,0.17);
+    border-radius: 6px;
+    box-shadow: 0px 0px 1px 0px rgba(3,16,38,0.1), 0px 1px 4px -1px rgba(3,16,38,0.1);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .card-frame {
+    display: block;
+    position: relative;
+    flex: 1;
+    background: #f8f8f9;
+    overflow: hidden;
+    text-decoration: none;
+  }
+  .card-frame img.visual {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  }
+  .card-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 12px;
+  }
+  .card-actions {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    opacity: 0; transition: opacity .15s;
+  }
+  .card:hover .card-actions { opacity: 1; }
+  .card-more {
+    width: 32px; height: 32px; border-radius: 5px;
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 0 0 1px rgba(0,34,51,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-more img { width: 24px; height: 24px; }
+  .card-select {
+    width: 32px; height: 32px; border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.8);
+  }
+  .card-footer-badge { display: flex; justify-content: flex-end; }
+  .badge {
+    backdrop-filter: blur(12px);
+    background: rgba(3,16,38,0.46);
+    color: #fff; font-size: 12px; line-height: 20px;
+    padding: 2px 4px; border-radius: 5px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 12px 16px; gap: 12px; flex-shrink: 0;
+  }
+  .card-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .card-title { font-size: 16px; color: #212c40; line-height: 20px; }
+  .card-detail { font-size: 14px; color: #4f5867; line-height: 20px; }
+
+  /* Fix: force every dropdown-caret glyph to a fixed 24x24 box, clipped by
+     its 16px-wide wrapper — some hot-linked Figma icon assets carry extra
+     canvas padding and were rendering oversized without this. */
+  .caret img { width: 24px !important; height: 24px !important; flex-shrink: 0; object-fit: contain; }
+  .caret svg { flex-shrink: 0; }
+
+  /* ---- Mode pill: nav bar vs filter row behaviour ---- */
+  /* When Spotlight is open, hide the mode pill from the nav search bar */
+  /* Mode pill always visible in the search input bar */
+
+  /* Image search icon: shrinks away as soon as the user starts typing */
+  #searchByImageBtn {
+    transition: opacity 0.12s, width 0.12s, padding 0.12s, margin 0.12s;
+  }
+  .search-shell.has-text #searchByImageBtn {
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /* Scrollable quicknav chip row with right-edge fade */
+  .sr-quicknav-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .sr-quicknav-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 40px;
+    background: linear-gradient(to right, transparent, #ffffff);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .sr-quicknav {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-right: 36px;
+    flex-wrap: nowrap;
+  }
+  .sr-quicknav::-webkit-scrollbar { display: none; }
+
+  /* Right-side group in the Spotlight filter row (In + mode pill) */
+  .sr-filters-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  /* NL mode: keep regular search icon in input bar (sparkle lives in mode selector pill only) */
+  .search-icon-sparkle { display: none; }
+
+  /* ---------- Asset Detail View (ADV) ----------
+     Dark modal that opens on top of everything, incl. the open search
+     dropdown, when a direct asset result is clicked. Closing it reveals
+     whatever was underneath (the search dropdown stays exactly as it was).
+     Dark surface tokens reused from Foundation: Gray 1000 #031028 (bg),
+     Gray 900 #122034 (sidebar), Gray 800 #212C40 (field fill / dividers),
+     Gray 700 #343E50 (field border), Gray 500 #697783 (muted label/icon),
+     primary blue #126dfe already used elsewhere in this file. Icon glyphs
+     below are generic placeholders — Figma access wasn't authenticated
+     this session so the real DS icon set couldn't be pulled; swap for the
+     actual Info/Edit/Duplicate/Trend/Link/Embed icons before shipping. */
+  .adv {
+    position: absolute; inset: 0; z-index: 100;
+    display: none;
+    background: #031028; color: #fff;
+  }
+  .adv.open { display: flex; flex-direction: column; }
+
+  .adv-topbar {
+    position: absolute; top: 20px; right: 24px; z-index: 2;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .adv-topbar button {
+    width: 32px; height: 32px; border-radius: 6px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .adv-topbar button:hover { background: rgba(255,255,255,0.08); }
+
+  .adv-body { flex: 1; display: flex; min-height: 0; }
+
+  .adv-main {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    padding: 28px 40px 32px;
+    position: relative;
+  }
+  .adv-heading { font-size: 24px; font-weight: 500; color: #fff; margin-bottom: 8px; padding-right: 96px; }
+  .adv-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #898BA2; flex-wrap: wrap; }
+  .adv-meta .dot { color: #4F5867; }
+  .adv-meta-action { display: flex; align-items: center; gap: 4px; color: #898BA2; cursor: pointer; }
+  .adv-meta-action:hover { color: #fff; }
+
+  .adv-canvas {
+    flex: 1; margin-top: 24px; min-height: 0;
+    background: #E8E9EB; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative;
+  }
+  .adv-canvas img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  .adv-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 32px; height: 32px; border-radius: 50%; color: #031028;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .adv-nav:hover { background: rgba(3,16,38,0.08); }
+  .adv-nav.prev { left: 8px; }
+  .adv-nav.next { right: 8px; }
+
+  .adv-sidebar {
+    width: 360px; flex-shrink: 0;
+    background: #122034; border-left: 1px solid #212C40;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .adv-tabs {
+    display: flex; align-items: center; gap: 24px;
+    padding: 0 24px; height: 56px; flex-shrink: 0;
+    border-bottom: 1px solid #212C40;
+  }
+  .adv-tab {
+    height: 100%; display: flex; align-items: center; justify-content: center;
+    width: 20px; color: #697783; border-bottom: 2px solid transparent;
+  }
+  .adv-tab.active { color: #fff; border-bottom-color: #126dfe; }
+  .adv-tab:not(.active):hover { color: #B8BCC2; }
+
+  .adv-fields { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+  .adv-field-input, .adv-field-textarea {
+    width: 100%; background: #212C40; border: 1px solid #343E50; border-radius: 6px;
+    padding: 10px 12px; color: #fff; font-size: 14px; font-family: inherit; resize: none;
+  }
+  .adv-field-input::placeholder, .adv-field-textarea::placeholder { color: #697783; }
+  .adv-field-textarea { min-height: 60px; }
+
+  .adv-divider { height: 1px; background: #212C40; margin: 4px 24px; flex-shrink: 0; }
+
+  .adv-meta-list { padding: 16px 24px; display: flex; flex-direction: column; gap: 14px; flex-shrink: 0; }
+  .adv-meta-row .label { font-size: 12px; color: #697783; margin-bottom: 2px; }
+  .adv-meta-row .value { font-size: 14px; color: #fff; }
+
+  .adv-expand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 24px; border-top: 1px solid #212C40;
+    font-size: 14px; color: #fff; cursor: pointer; flex-shrink: 0;
+  }
+  .adv-expand:hover { background: rgba(255,255,255,0.03); }
+  .adv-expand-icon {
+    width: 28px; height: 28px; border-radius: 6px; background: #212C40; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; color: #B8BCC2;
+  }
+  .adv-expand .chev { margin-left: auto; color: #697783; }
+
+  .adv-footer { padding: 16px 24px 24px; margin-top: auto; flex-shrink: 0; }
+  .adv-download-btn {
+    width: 100%; background: #126dfe; color: #fff; border-radius: 6px;
+    padding: 11px 16px; font-size: 14px; font-weight: 500; text-align: center;
+  }
+  .adv-download-btn:hover { background: #0f5ce0; }
+
+  /* ---------- SERP (search results page) ----------
+     Opens when Enter is pressed in the search input, matching the Figma
+     "Asset Bank" variant that has an Active-filters row + Sidebar/Content
+     split instead of the normal filter-row + grid. Pulled 1:1 from the
+     Figma frame (fileKey ul3kfxXaJc8fZIgejzENCt, node 6019:80775) via
+     get_design_context — including the literal "Filter 1/2/3/4" /
+     "Meta property" placeholder copy and hatched Icon/Placeholder glyphs,
+     since that frame is itself still a lower-fidelity wireframe pass. */
+  #serpFilterRow { display: none; }
+  .frame.serp-open #normalFilterRow { display: none; }
+  .frame.serp-open #serpFilterRow { display: flex; }
+  .frame.serp-open .view-options, .frame.serp-open .grid { display: none; }
+
+  .af-chip {
+    display: inline-flex; align-items: center; min-height: 30px; padding: 0 8px;
+    border-radius: 9999px; background: rgba(3,16,38,0.05);
+    font-size: 14px; color: #212c40; white-space: nowrap;
+  }
+  .af-clear {
+    display: inline-flex; align-items: center; min-height: 30px; padding: 0 8px;
+    border-radius: 6px; font-size: 14px; color: #4f5867; white-space: nowrap;
+  }
+  .af-clear:hover { background: rgba(3,16,38,0.03); }
+  .af-save {
+    display: inline-flex; align-items: center; min-height: 30px; padding: 0 8px;
+    border-radius: 6px; font-size: 14px; color: #212c40; white-space: nowrap;
+    background: rgba(3,16,38,0.03); border: 1px solid rgba(3,16,38,0.17);
+  }
+  .af-save:hover { background: rgba(3,16,38,0.06); }
+
+  #serpBody {
+    display: none;
+    position: absolute; top: 172px; left: 0; right: 0; bottom: 0;
+    background: #fff;
+  }
+  .frame.serp-open #serpBody { display: flex; }
+
+  .serp-sidebar {
+    width: 272px; flex-shrink: 0; background: #fff;
+    box-shadow: 1px 0px 0px 0px rgba(0,0,0,0.1);
+    padding: 12px 0; display: flex; flex-direction: column; overflow-y: auto;
+  }
+  /* NLS ON badge — sits next to the "Search results for ..." heading now
+     (moved out of the sidebar, which no longer has its own header row). */
+  .sb-nls-badge {
+    display: none; align-items: center; gap: 4px;
+    background: #f3f2fd; color: #7064e4; font-size: 12px;
+    padding: 2px 4px; border-radius: 5px;
+  }
+  .sb-nls-badge.show { display: flex; }
+  .sb-nls-badge img { width: 18px; height: 18px; }
+  .sb-section { padding: 0 16px; display: flex; flex-direction: column; gap: 2px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 8px; min-height: 40px;
+    padding: 2px 12px; border-radius: 6px; cursor: pointer;
+  }
+  .sb-item:hover { background: rgba(3,16,38,0.03); }
+  .sb-item.active { background: rgba(3,16,38,0.05); }
+  .sb-item .sb-icon { width: 24px; height: 24px; flex-shrink: 0; }
+  .sb-item .sb-label {
+    flex: 1; min-width: 0; font-size: 16px; color: #4f5867;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sb-item.active .sb-label { color: #212c40; }
+  .sb-item .sb-badge {
+    background: rgba(3,16,38,0.07); color: #212c40; font-size: 12px;
+    padding: 2px 8px; border-radius: 9999px; white-space: nowrap; flex-shrink: 0;
+  }
+  .sb-divider { height: 1px; background: rgba(3,16,38,0.1); margin: 8px 16px; }
+
+  .serp-content { flex: 1; min-width: 0; padding: 10px 24px 0; display: flex; flex-direction: column; overflow-y: auto; }
+  .serp-view-options { display: flex; align-items: center; gap: 12px; padding: 14px 0; flex-shrink: 0; }
+  .serp-heading {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 20px; font-weight: 600; color: #212c40; margin: 10px 0 16px; flex-shrink: 0;
+  }
+  .serp-heading .q { font-weight: 400; }
+  .serp-grid { display: flex; flex-wrap: wrap; gap: 16px; align-content: flex-start; padding-bottom: 32px; }
+
+  /* List view — same shell, same data, different layout. Wireframe-fidelity
+     placeholders (Card title/detail/description/Label) match the literal
+     copy already established for the SERP grid cards above, since the
+     source Figma frame for this section is itself a lower-fidelity pass.
+     Figma auth wasn't available this session to verify a dedicated "asset
+     list row" DS component — flagging that; swap for the real component
+     if one exists before shipping. */
+  .serp-grid.view-list {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 20px 32px; overflow-y: auto; align-content: flex-start;
+  }
+  .list-row { display: flex; gap: 12px; }
+  .list-thumb {
+    display: block;
+    width: 132px; height: 96px; border-radius: 4px; overflow: hidden;
+    flex-shrink: 0; background: #f8f8f9; text-decoration: none;
+  }
+  .list-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
+  .list-desc { font-size: 14px; color: #4f5867; line-height: 20px; }
+  .list-label {
+    margin-top: 4px; display: inline-flex; align-items: center; width: fit-content;
+    min-height: 24px; padding: 0 8px; border-radius: 9999px;
+    background: rgba(3,16,38,0.05); font-size: 13px; color: #212c40;
+  }
+
+  /* Collections card — same .card shell as assets, count badge moves to the
+     top-right corner instead of the bottom-right JPG badge. */
+  .card-count-badge {
+    position: absolute; top: 8px; right: 8px;
+    backdrop-filter: blur(12px); background: rgba(3,16,38,0.46); color: #fff;
+    font-size: 12px; line-height: 20px; padding: 2px 4px; border-radius: 5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="search-backdrop" id="searchBackdrop"></div>
+    <div class="main-header">
+      <div class="spacer"></div>
+
+      <div class="search-shell" id="searchShell">
+      <div class="search-input" id="searchInput">
+        <img class="icon search-icon-default" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Ccircle%20cx=%279%27%20cy=%279%27%20r=%275.5%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Cpath%20d=%27M13%2013L17%2017%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E" alt="search">
+        <span class="search-icon-sparkle"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2L11.8 7.2L17 9L11.8 10.8L10 16L8.2 10.8L3 9L8.2 7.2L10 2Z" fill="#7c3aed"/><path d="M16 13L16.8 15.2L19 16L16.8 16.8L16 19L15.2 16.8L13 16L15.2 15.2L16 13Z" fill="#7c3aed"/></svg></span>
+        <div class="sr-in-pills" id="srInPills"></div>
+        <input class="placeholder" id="searchPlaceholder" type="text" autocomplete="off" placeholder="Search..." onkeydown="if(event.key==='Enter'){var q=this.value.trim();if(q.length>=2&&typeof openSerp==='function'){event.preventDefault();openSerp(q);}}">
+        <button class="sr-clear" id="clearBtn" type="button" aria-label="Clear search">&times;</button>
+
+        <button class="search-mode" id="searchModeTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="ai-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L9.4 5.8L13.7 7.2L9.4 8.6L8 12.9L6.6 8.6L2.3 7.2L6.6 5.8L8 1.5Z" fill="#7c3aed"/><path d="M13 10.5L13.6 12.3L15.4 12.9L13.6 13.5L13 15.3L12.4 13.5L10.6 12.9L12.4 12.3L13 10.5Z" fill="#7c3aed"/></svg>
+          </span>
+          <span id="searchModeLabel">Unified</span>
+          <span class="caret">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+
+        <div class="search-mode-menu" id="searchModeMenu" role="listbox">
+          <div class="search-mode-item selected" data-mode="unified" role="option">
+            <div class="item-text">
+              <div class="item-title">Unified Search</div>
+              <div class="item-desc">Searches assets, guidelines and collections together.</div>
+            </div>
+            <span class="item-check">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9.5l3 3 7-7.5" stroke="#212c40" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
+          <div class="search-mode-item" data-mode="keyword" role="option">
+            <div class="item-text">
+              <div class="item-title">Keyword Search</div>
+              <div class="item-desc">Searches by title, tags, name and metadata.</div>
+            </div>
+            <span class="item-check">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9.5l3 3 7-7.5" stroke="#212c40" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
+          <div class="search-mode-item" data-mode="nl" role="option">
+            <div class="item-text">
+              <div class="item-title">AI-powered Search</div>
+              <div class="item-desc">Searches by meaning, not keywords.</div>
+            </div>
+            <span class="item-check">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9.5l3 3 7-7.5" stroke="#212c40" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <button class="file-placeholder" id="searchByImageBtn" type="button" aria-label="Search by image">
+          <img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Cpath%20d=%27M2%208a2%202%200%20012-2h1l1.5-2h7L15%206h1a2%202%200%20012%202v7a2%202%200%2001-2%202H4a2%202%200%2001-2-2V8z%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Ccircle%20cx=%2710%27%20cy=%2711%27%20r=%272.5%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3C/svg%3E" alt="">
+        </button>
+      </div>
+
+      <div class="search-image-header" id="searchImageHeader">
+        <button class="back-btn" id="imgBackBtn" type="button" aria-label="Back to search">
+          <img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+        </button>
+        <span class="title">Search by image</span>
+      </div>
+
+      <div class="search-results-menu" id="searchResultsMenu" data-view="idle" onkeydown="if(event.key==='Enter'){var q=document.getElementById('searchPlaceholder').value.trim();if(q.length>=2&&typeof openSerp==='function'){event.preventDefault();openSerp(q);}}">
+        <div class="sr-filters">
+
+          <span style="font-size:14px;color:#4f5867;flex-shrink:0;">In</span>
+
+          <!-- Scrollable entity chips — scroll horizontally with a right-side
+               fade when chips overflow. -->
+          <div class="sr-quicknav-wrap">
+            <div class="sr-quicknav">
+              <button class="af-chip sr-quicknav-chip" data-nav="assets">Assets</button>
+              <button class="af-chip sr-quicknav-chip" data-nav="collections">Collections</button>
+              <button class="af-chip sr-quicknav-chip" data-nav="guidelines">Guidelines</button>
+            </div>
+          </div>
+
+          <!-- Right controls: In (field scope) + mode pill (only shown when
+               Spotlight is open — the nav bar pill hides at that point). -->
+          <div class="sr-filters-right">
+            <div class="sr-filter" data-filter="in">
+              <button class="sr-filter-chip" data-default="Where" data-default-nl="Where">
+                <span class="sr-filter-label">Where</span>
+                <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </button>
+              <div class="sr-filter-submenu">
+                <div class="sr-sub-title">Where to search</div>
+                <div class="sr-sub-list" data-select="multi-check">
+                  <label class="sr-sub-check-row"><input type="checkbox" name="searchIn" value="Title" onchange="(function(cb){var f=cb.closest('[data-filter]');if(!f)return;var cs=Array.from(f.querySelectorAll('input:checked'));var lbl=f.querySelector('.sr-filter-label');var chip=f.querySelector('.sr-filter-chip');if(cs.length===0){lbl.textContent='Where';chip.classList.remove('active-filter');}else if(cs.length===1){lbl.textContent=cs[0].value;chip.classList.add('active-filter');}else{lbl.textContent='Where: All';chip.classList.add('active-filter');}})(this)"><span>Title</span></label>
+                  <label class="sr-sub-check-row"><input type="checkbox" name="searchIn" value="Description" onchange="(function(cb){var f=cb.closest('[data-filter]');if(!f)return;var cs=Array.from(f.querySelectorAll('input:checked'));var lbl=f.querySelector('.sr-filter-label');var chip=f.querySelector('.sr-filter-chip');if(cs.length===0){lbl.textContent='Where';chip.classList.remove('active-filter');}else if(cs.length===1){lbl.textContent=cs[0].value;chip.classList.add('active-filter');}else{lbl.textContent='Where: All';chip.classList.add('active-filter');}})(this)"><span>Description</span></label>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+        <div class="sr-divider"></div>
+
+        <div class="sr-idle">
+          <div class="sr-idle-default">
+            <div class="sr-section">
+              <div class="sr-section-title">Recent Searches</div>
+              <div class="sr-item">
+                <span class="sr-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 5v5l3.5 2M17.5 10a7.5 7.5 0 11-2.2-5.3" stroke="#697783" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="sr-label">Search item</span>
+              </div>
+              <div class="sr-item">
+                <span class="sr-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 5v5l3.5 2M17.5 10a7.5 7.5 0 11-2.2-5.3" stroke="#697783" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="sr-label">Search item</span>
+              </div>
+              <div class="sr-item">
+                <span class="sr-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 5v5l3.5 2M17.5 10a7.5 7.5 0 11-2.2-5.3" stroke="#697783" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="sr-label">Search item</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shown instead of Recent Searches once a quick-nav chip is
+               selected — lets you browse that section's latest items
+               before typing a search term at all. -->
+          <div class="sr-idle-nav">
+            <div class="sr-section">
+              <div class="sr-section-title-row">
+                <div class="sr-section-title" id="navResultsTitle">Latest results</div>
+                <a class="sr-view-all visible" id="navViewAll">View all</a>
+              </div>
+              <div id="navResultsList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sr-skeleton">
+          <div class="sr-skel-row"><div class="sr-skel-box"></div><div class="sr-skel-lines"><div class="sr-skel-line"></div><div class="sr-skel-line short"></div></div></div>
+          <div class="sr-skel-row"><div class="sr-skel-box"></div><div class="sr-skel-lines"><div class="sr-skel-line"></div><div class="sr-skel-line short"></div></div></div>
+          <div class="sr-skel-row"><div class="sr-skel-box"></div><div class="sr-skel-lines"><div class="sr-skel-line"></div><div class="sr-skel-line short"></div></div></div>
+          <div class="sr-skel-row"><div class="sr-skel-box"></div><div class="sr-skel-lines"><div class="sr-skel-line"></div><div class="sr-skel-line short"></div></div></div>
+        </div>
+
+        <!-- Search by image: empty state (upload / paste link) -->
+        <div class="sr-image-upload">
+          <div class="sr-image-upload-row">
+            <div>
+              <div class="sr-image-upload-title">Upload an image</div>
+              <div class="sr-image-upload-sub">We support JPG, JPEG, PNG, WEBP images.</div>
+            </div>
+            <button class="sr-btn-primary-sm" id="imgUploadBtn" type="button">Upload</button>
+          </div>
+          <div class="sr-image-paste-row">
+            <input type="text" id="imgPasteInput" placeholder="Paste image link" autocomplete="off">
+            <button class="sr-btn-secondary-sm" id="imgPasteSearchBtn" type="button" disabled>Search</button>
+          </div>
+          <a class="sr-image-help-link">How to copy and paste links</a>
+        </div>
+
+        <!-- Mock results — same static data set regardless of query, just to
+             demonstrate the loading -> results transition, the category chip
+             filtering, and the Keyword-vs-Natural-language content difference.
+             Rows are rendered by JS (see script) from a small data table. -->
+        <div class="sr-results">
+          <div class="sr-selected-image">
+            <img class="sr-selected-image-thumb" id="srSelectedImageThumb" src="" alt="">
+            <span class="sr-selected-image-name" id="srSelectedImageName">Image name.extension</span>
+            <button class="sr-selected-image-clear" id="srSelectedImageClear" type="button" aria-label="Remove image">&times;</button>
+          </div>
+          <div class="sr-count-chips" id="srCountChips"></div>
+          <div id="srResultsContainer"></div>
+          <!-- Tag + Metaproperty suggestions — only within Assets view -->
+          <div class="sr-suggestions" id="srSuggestions" style="display:none;">
+            <div class="sr-divider" style="margin:0;"></div>
+            <div class="sr-suggestion-row" id="srTagRow">
+              <span class="sr-suggestion-label">Tags</span>
+              <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srTagChips"></div></div>
+            </div>
+            <div class="sr-suggestion-row" id="srMetaRow">
+              <span class="sr-suggestion-label">Metaproperties</span>
+              <div class="sr-suggestion-chips-wrap"><div class="sr-suggestion-chips" id="srMetaChips"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sr-no-results">
+          <div class="sr-no-results-title">No results found</div>
+          <div class="sr-no-results-sub">Try a different search term or adjust your filters.</div>
+        </div>
+
+        <div class="sr-footer">
+          <div class="sr-help"><span class="sr-key">?</span> Help</div>
+          <div class="sr-keys">
+            <span class="sr-keygroup sr-kg-navigate"><span class="sr-key">&uarr;</span><span class="sr-key">&darr;</span> Navigate</span>
+            <span class="sr-keygroup sr-kg-select"><span class="sr-key">&crarr;</span> Select</span>
+            <span class="sr-keygroup"><span class="sr-key">esc</span> Close</span>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="header-right">
+        <button class="icon-btn">
+          <img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Cpath%20d=%27M5%209a5%205%200%200110%200v3l1.5%201.5H3.5L5%2012V9z%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linejoin=%27round%27/%3E%3Cpath%20d=%27M8.5%2016.5a1.5%201.5%200%20003%200%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3C/svg%3E" alt="notifications">
+          <span class="notif-dot"></span>
+        </button>
+        <div class="avatar">B</div>
+        <div class="user-name">Bibin Thomas</div>
+        <button class="icon-btn">
+          <img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Ccircle%20cx=%2710%27%20cy=%2710%27%20r=%272.5%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Cpath%20d=%27M10%202v2M10%2016v2M2%2010h2M16%2010h2M4.34%204.34l1.42%201.42M14.24%2014.24l1.42%201.42M4.34%2015.66l1.42-1.42M14.24%205.76l1.42-1.42%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E" alt="settings">
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <div class="nav-left">
+        <img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2788%27%20height=%2724%27%20viewBox=%270%200%2088%2024%27%3E%3Ctext%20x=%270%27%20y=%2718%27%20font-family=%27Inter,-apple-system,BlinkMacSystemFont,sans-serif%27%20font-size=%2718%27%20font-weight=%27700%27%20fill=%27%23126DFE%27%3Ebynder%3C/text%3E%3C/svg%3E" alt="Bynder">
+        <a class="nav-btn">Home</a>
+        <a class="nav-btn active">Assets</a>
+        <a class="nav-btn">Collections</a>
+        <a class="nav-btn">Guidelines</a>
+        <a class="nav-btn">Studio</a>
+        <a class="nav-btn">Workflow</a>
+        <a class="nav-btn">Content Workflow</a>
+        <a class="nav-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.5" fill="#4f5867"/><circle cx="8" cy="8" r="1.5" fill="#4f5867"/><circle cx="8" cy="13" r="1.5" fill="#4f5867"/></svg>
+          More
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+      </div>
+      <div class="nav-right">
+        <button class="btn-primary">
+          <img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2716%27%20height=%2716%27%20viewBox=%270%200%2016%2016%27%20fill=%27none%27%3E%3Cpath%20d=%27M2%2010v2.5A1.5%201.5%200%20003.5%2014h9a1.5%201.5%200%20001.5-1.5V10%27%20stroke=%27white%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3Cpath%20d=%27M8%202v8M5.5%204.5L8%202l2.5%202.5%27%20stroke=%27white%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27/%3E%3C/svg%3E" alt="">
+          Upload media
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-row" id="normalFilterRow">
+      <div class="filter-left">
+        <button class="chip-btn">
+          <img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          Smart filter
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button class="chip-btn">
+          <img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          Smart filter
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button class="chip-btn">
+          <img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          Advacned
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button class="chip-btn">
+          <img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          Color
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button class="chip-btn">
+          <img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          Tags
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button class="chip-btn"><img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt=""></button>
+        <button class="chip-btn"><img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt=""></button>
+      </div>
+      <div class="filter-right">
+        <button class="chip-btn">
+          <img class="icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          Saved filters
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SERP variant of the filter row — shown instead of #normalFilterRow
+         once a search is submitted. Copy ("Filter 1/2/3...") is literal —
+         pulled straight from the Figma frame, which is itself still a
+         wireframe pass on this screen. -->
+    <div class="filter-row" id="serpFilterRow">
+      <div class="filter-left" style="gap:8px;">
+        <span class="af-chip">Filter 1</span>
+        <span class="af-chip">Filter 2</span>
+        <span class="af-chip">Filter 3</span>
+        <button class="af-clear">Clear all</button>
+        <button class="af-save">Save filters</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View options -->
+  <div class="view-options">
+    <div class="view-left">
+      <div class="counter">
+        <div class="count">98</div>
+        <div class="results"><b>87208</b>results
+          <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+      <button class="sec-btn">Order by date added
+        <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <button class="icon-only-btn"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Cpath%20d=%27M3%205h14M5%2010h10M7%2015h6%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E" alt=""></button>
+    </div>
+    <div class="view-right">
+      <button class="icon-only-btn"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Ccircle%20cx=%279%27%20cy=%279%27%20r=%275%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Cpath%20d=%27M13%2013L17%2017%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3Cpath%20d=%27M7%209h4M9%207v4%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E" alt=""></button>
+      <button class="plain-icon-btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4-4 4 4M4 10l4 4 4-4" stroke="#4f5867" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="view-toggle">
+        <div class="tab active"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%272%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Crect%20x=%2711%27%20y=%272%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Crect%20x=%272%27%20y=%2711%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Crect%20x=%2711%27%20y=%2711%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3C/svg%3E" alt=""></div>
+        <div class="tab"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%274%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278%27%20width=%2716%27%20height=%274%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2713%27%20width=%2716%27%20height=%274%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt=""></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder01/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+          <div class="card-footer-badge"><span class="badge">JPG</span></div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder02/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+          <div class="card-footer-badge"><span class="badge">JPG</span></div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder03/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder04/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder05/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder06/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder07/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder08/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder01/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder02/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder03/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-frame">
+        <img class="visual" src="https://picsum.photos/seed/bynder04/496/360" alt="">
+        <div class="card-overlay">
+          <div class="card-actions">
+            <div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>
+            <div class="card-select"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-title">Card title</div>
+          <div class="card-detail">Card detail</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SERP — opens when Enter is pressed in the search input. Pulled 1:1
+       from Figma node 6019:80775 (Sidebar + Content split, replacing the
+       normal filter-row + grid below the header). -->
+  <div id="serpBody">
+    <div class="serp-sidebar">
+      <div class="sb-section">
+        <div class="sb-item active">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">All results</span>
+          <span class="sb-badge">87208</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Assets</span>
+          <span class="sb-badge">24</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Collections</span>
+          <span class="sb-badge">3</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Guidelines</span>
+          <span class="sb-badge">19</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Meta property</span>
+          <span class="sb-badge">56</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Meta property</span>
+          <span class="sb-badge">678</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Meta property</span>
+          <span class="sb-badge">908</span>
+        </div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-section">
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Filter 1</span>
+          <span class="sb-badge">19</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Filter 2</span>
+          <span class="sb-badge">56</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Filter 3</span>
+          <span class="sb-badge">678</span>
+        </div>
+        <div class="sb-item">
+          <img class="sb-icon" src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt="">
+          <span class="sb-label">Filter 4</span>
+          <span class="sb-badge">908</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="serp-content">
+      <div class="serp-view-options">
+        <div class="view-left">
+          <div class="counter">
+            <div class="count">98</div>
+            <div class="results"><b>87208</b>results
+              <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+          <button class="sec-btn">Order by relevance
+            <span class="caret"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#4f5867" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+          <button class="icon-only-btn"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Cpath%20d=%27M3%205h14M5%2010h10M7%2015h6%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E" alt=""></button>
+        </div>
+        <div class="view-right">
+          <button class="icon-only-btn"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Ccircle%20cx=%279%27%20cy=%279%27%20r=%275%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Cpath%20d=%27M13%2013L17%2017%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3Cpath%20d=%27M7%209h4M9%207v4%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27%20stroke-linecap=%27round%27/%3E%3C/svg%3E" alt=""></button>
+          <button class="plain-icon-btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4-4 4 4M4 10l4 4 4-4" stroke="#4f5867" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="view-toggle">
+            <div class="tab active"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%272%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Crect%20x=%2711%27%20y=%272%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Crect%20x=%272%27%20y=%2711%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Crect%20x=%2711%27%20y=%2711%27%20width=%277%27%20height=%277%27%20rx=%271%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3C/svg%3E" alt=""></div>
+            <div class="tab"><img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%274%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278%27%20width=%2716%27%20height=%274%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2713%27%20width=%2716%27%20height=%274%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E" alt=""></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="serp-heading">
+        Search results for <span class="q" id="serpQuery">"lady wearing jacket"</span>
+        <div class="sb-nls-badge" id="sbNlsBadge">
+          <img src="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2714%27%20height=%2714%27%20viewBox=%270%200%2014%2014%27%20fill=%27none%27%3E%3Cpath%20d=%27M7%201L8.5%205.5L13%207L8.5%208.5L7%2013L5.5%208.5L1%207L5.5%205.5L7%201Z%27%20fill=%27%237c3aed%27/%3E%3C/svg%3E" alt="">
+          NLS
+        </div>
+      </div>
+
+      <div class="serp-grid" id="serpGrid"></div>
+    </div>
+  </div>
+
+  <!-- Asset Detail View — opens over everything (incl. an open search
+       dropdown) when a direct asset result is clicked. Closing it just
+       hides this layer, so whatever was underneath reverts exactly. -->
+  <div class="adv" id="assetDetailView">
+    <div class="adv-topbar">
+      <button id="advFullscreenBtn" title="Fullscreen">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2H2v4M10 2h4v4M6 14H2v-4M10 14h4v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="advCloseBtn" title="Close">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="adv-body">
+      <div class="adv-main">
+        <div class="adv-heading" id="advTitle">Asset name</div>
+        <div class="adv-meta">
+          <span id="advId">ID 984752E8-AFB0-4040-AF7B8561D3DF232B</span>
+          <span class="dot">&bull;</span>
+          <span id="advViews">21,827 views</span>
+          <span class="dot">&bull;</span>
+          <span id="advDownloads">0 downloads</span>
+          <span class="dot">&bull;</span>
+          <span class="adv-meta-action">Share media</span>
+          <span class="dot">&bull;</span>
+          <span class="adv-meta-action">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7 4v6M4 7h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Add to collection
+          </span>
+        </div>
+        <div class="adv-canvas">
+          <button class="adv-nav prev" id="advPrev" title="Previous">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4l-5 5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <img id="advImage" src="" alt="">
+          <button class="adv-nav next" id="advNext" title="Next">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M7 4l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="adv-sidebar">
+        <div class="adv-tabs">
+          <div class="adv-tab active" title="Info">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.3"/><path d="M9 8.2v4M9 5.8v.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </div>
+          <div class="adv-tab" title="Edit">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11.3 3.7l2 2L6 13H4v-2l7.3-7.3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="adv-tab" title="Duplicate">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="6" y="6" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 12V5a1 1 0 0 1 1-1h7" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <div class="adv-tab" title="Analytics">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 13l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="adv-fields">
+          <input class="adv-field-input" id="advNameInput" value="Asset name">
+          <textarea class="adv-field-textarea" placeholder="Asset Description"></textarea>
+        </div>
+        <div class="adv-divider"></div>
+        <div class="adv-meta-list">
+          <div class="adv-meta-row"><div class="label">Date published</div><div class="value">5 June 2024 16:56</div></div>
+          <div class="adv-meta-row"><div class="label">Date added</div><div class="value">5 June 2024 16:56</div></div>
+          <div class="adv-meta-row"><div class="label">Original filename</div><div class="value" id="advFilename">fresh-blast-citrus.png</div></div>
+          <div class="adv-meta-row"><div class="label">Added by</div><div class="value">Bibin</div></div>
+        </div>
+        <div class="adv-expand">
+          <span class="adv-expand-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M6 8a2.2 2.2 0 0 0 3 0l2-2a2.1 2.1 0 0 0-3-3l-.7.7M8 6a2.2 2.2 0 0 0-3 0l-2 2a2.1 2.1 0 0 0 3 3l.7-.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>
+          Link to file
+          <span class="chev">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div class="adv-expand">
+          <span class="adv-expand-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 4L2 7l3 3M9 4l3 3-3 3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Embed media
+          <span class="chev">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div class="adv-footer">
+          <button class="adv-download-btn">Download all files (1)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const searchShell = document.getElementById('searchShell');
+  const searchInput = document.getElementById('searchInput');
+  const trigger = document.getElementById('searchModeTrigger');
+  const menu = document.getElementById('searchModeMenu');
+  const label = document.getElementById('searchModeLabel');
+  const placeholder = document.getElementById('searchPlaceholder');
+  const items = menu.querySelectorAll('.search-mode-item');
+  const resultsMenu = document.getElementById('searchResultsMenu');
+  const clearBtn = document.getElementById('clearBtn');
+  const headerEl = document.querySelector('.header');
+
+
+  let currentMode = 'unified';
+
+  const modes = {
+    unified: { label: 'Unified', placeholder: 'Search assets, guidelines, collections...' },
+    keyword: { label: 'Keyword', placeholder: 'Search...' },
+    nl: { label: 'AI-powered', placeholder: "Describe what you're looking for..." }
+  };
+
+  // Syncs both pills + shell state for a given mode
+  function selectMode(mode) {
+    currentMode = mode;
+    // Nav bar pill
+    label.textContent = modes[mode].label;
+    trigger.classList.toggle('unified-mode', mode === 'unified');
+    trigger.classList.toggle('nl-mode', mode === 'nl');
+    items.forEach((i) => i.classList.toggle('selected', i.dataset.mode === mode));
+    // Shell + placeholder
+    placeholder.placeholder = modes[mode].placeholder;
+    searchShell.classList.toggle('nl-active', mode === 'nl');
+    resultsMenu.classList.toggle('mode-nl', mode === 'nl');
+    setFilterLabels(resultsMenu.dataset.view === 'results');
+    if (resultsMenu.dataset.view === 'no-results') renderNoResults(placeholder.value.trim());
+  }
+
+  // ---- Nav bar mode pill ----
+  function closeModeMenu() {
+    searchInput.classList.remove('open');
+    trigger.setAttribute('aria-expanded', false);
+  }
+  function openModeMenu() {
+    closeResults();
+    searchInput.classList.add('open');
+    trigger.setAttribute('aria-expanded', true);
+  }
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    searchInput.classList.contains('open') ? closeModeMenu() : openModeMenu();
+  });
+  items.forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectMode(item.dataset.mode);
+      closeModeMenu();
+    });
+  });
+
+  // Apply unified as default (syncs placeholder + shell state)
+  selectMode('unified');
+
+  // ---- Results dropdown (opens on focusing the input) ----
+  function openResults() {
+    closeModeMenu();
+    searchShell.classList.add('results-open');
+    headerEl.classList.add('search-active');
+    if (!searchShell.classList.contains('image-mode')) updateResultsView();
+  }
+  function closeResults() {
+    searchShell.classList.remove('results-open', 'image-mode');
+    headerEl.classList.remove('search-active');
+    resultsMenu.dataset.view = 'idle';
+    document.querySelectorAll('.sr-filter.open').forEach((f) => f.classList.remove('open'));
+    idleNavKey = null;
+    document.querySelector('.sr-idle').classList.remove('nav-selected');
+    syncQuicknavChips();
+  }
+
+  // Location/Type/In labels swap to the broader "All locations / All assets /
+  // All fields" set once results are showing in Natural language mode — but
+  // never override a filter the person has actually picked.
+  function setFilterLabels(useResultsVariant) {
+    document.querySelectorAll('.sr-filter').forEach((f) => {
+      const chip = f.querySelector('.sr-filter-chip');
+      if (chip.classList.contains('active-filter')) return;
+      const lbl = f.querySelector('.sr-filter-label');
+      lbl.textContent = (useResultsVariant && currentMode === 'nl') ? chip.dataset.defaultNl : chip.dataset.default;
+    });
+  }
+
+  // ---- Result rows: small data table + renderer, driven by mode + category ----
+  const RESULT_PHOTOS = [
+    'https://picsum.photos/seed/bynder01/496/360',
+    'https://picsum.photos/seed/bynder02/496/360',
+    'https://picsum.photos/seed/bynder03/496/360',
+    'https://picsum.photos/seed/bynder04/496/360',
+    'https://picsum.photos/seed/bynder05/496/360',
+    'https://picsum.photos/seed/bynder06/496/360',
+    'https://picsum.photos/seed/bynder07/496/360',
+    'https://picsum.photos/seed/bynder08/496/360'
+  ];
+  const RESULT_BADGES = ['JPG', 'PNG', 'MOV'];
+  const GUIDELINE_ICON = 'data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Crect%20x=%272%27%20y=%273%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%278.75%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3Crect%20x=%272%27%20y=%2714.5%27%20width=%2716%27%20height=%272.5%27%20rx=%271%27%20fill=%27%23667080%27/%3E%3C/svg%3E';
+  const COLLECTION_ICON = 'data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2720%27%20height=%2720%27%20viewBox=%270%200%2020%2020%27%20fill=%27none%27%3E%3Cpath%20d=%27M2%208a2%202%200%20012-2h1l1.5-2h7L15%206h1a2%202%200%20012%202v7a2%202%200%2001-2%202H4a2%202%200%2001-2-2V8z%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3Ccircle%20cx=%2710%27%20cy=%2711%27%20r=%272.5%27%20stroke=%27%23667080%27%20stroke-width=%271.5%27/%3E%3C/svg%3E';
+  const EXPLAIN_SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#212c40" stroke-width="1.3"/><path d="M9.3 9.3L12 12" stroke="#212c40" stroke-width="1.3" stroke-linecap="round"/></svg>';
+
+  const CATEGORIES = {
+    assets: { count: 24, type: 'asset', title: 'Asset name' },
+    guidelines: { count: 19, type: 'guideline', title: 'Guide line' },
+    collections: { count: 3, type: 'collection', title: 'Collection' },
+    tags: { count: 22, type: 'tag', title: 'Tag name' },
+    properties: { count: 12, type: 'property', title: 'Metaproperty name' }
+  };
+
+  let activeCategory = null;
+
+  // Quick-nav chips (Assets / Collections / Guidelines) — one row, two jobs:
+  // before any search text, they're corpus totals that preview each
+  // section's latest items; once results are showing, they become the same
+  // category filter the old second chip row was (merged per feedback —
+  // having both on screen at once was redundant since it's the same three
+  // categories either way). Declared up here, ahead of renderAllResultLists'
+  // first call below, since that call reaches into this block.
+  const NAV_META = {
+    assets: { count: 87208, label: 'Asset name' },
+    collections: { count: 34, label: 'Collection name' },
+    guidelines: { count: 75, label: 'Guideline name' },
+    tags: { count: 22, label: 'Tag name' },
+    properties: { count: 12, label: 'Metaproperty name' }
+  };
+  const idleEl = document.querySelector('.sr-idle');
+  const navResultsTitle = document.getElementById('navResultsTitle');
+  const navViewAll = document.getElementById('navViewAll');
+  const navResultsList = document.getElementById('navResultsList');
+  const quicknavChips = document.querySelectorAll('.sr-quicknav-chip');
+  let idleNavKey = null;
+
+  function isResultsContext() {
+    const v = resultsMenu.dataset.view;
+    return v === 'results' || v === 'image-results';
+  }
+
+  // DS icons for category chips (idle state only)
+  const NAV_ICONS = {
+    assets:      'https://www.figma.com/api/mcp/asset/26d872a6-eeb4-428d-ac03-08aa0deeda20.svg',
+    collections: 'https://www.figma.com/api/mcp/asset/058f3228-9544-46ce-9224-9a320268b771.svg',
+    guidelines:  'https://www.figma.com/api/mcp/asset/dbd5851c-4043-4373-a5d3-6c0d20f9b267.svg',
+  };
+
+  // Keeps chip content + active state in sync with whichever mode applies —
+  // idle: icon + label | loading: spinner + label | results: count + label
+  function syncQuicknavChips() {
+    const view = resultsMenu.dataset.view;
+    const resultsCtx = view === 'results' || view === 'image-results';
+    const loadingCtx = view === 'loading';
+    quicknavChips.forEach((chip) => {
+      const key = chip.dataset.nav;
+      const capKey = key.charAt(0).toUpperCase() + key.slice(1);
+      if (loadingCtx) {
+        chip.innerHTML = '<span class="nav-chip-spinner"></span>' + capKey;
+        chip.classList.remove('active');
+        chip.classList.add('loading');
+      } else {
+        // Both idle and results: always show count + label
+      chip.innerHTML = CATEGORIES[key].count.toLocaleString() + ' ' + capKey;
+      chip.classList.toggle('active', resultsCtx ? activeCategory === key : idleNavKey === key);
+        chip.classList.remove('loading');
+      }
+    });
+  }
+
+  function renderNavResults(key) {
+    const meta = NAV_META[key];
+    navResultsTitle.textContent = 'Latest results';
+    navViewAll.textContent = (key === 'guidelines' || key === 'collections') ? 'View all' : 'View all (' + meta.count + ')';
+    navResultsList.innerHTML = Array.from({ length: 6 }, () =>
+      '<div class="sr-nav-result-row"><img src="' + RESULT_PHOTOS[Math.floor(Math.random() * RESULT_PHOTOS.length)] + '" alt=""><div class="sr-result-title">' + meta.label + '</div></div>'
+    ).join('');
+  }
+
+  quicknavChips.forEach((chip) => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = chip.dataset.nav;
+      if (isResultsContext()) {
+        activeCategory = activeCategory === key ? null : key;
+        renderAllResultLists();
+        return;
+      }
+      idleNavKey = idleNavKey === key ? null : key;
+      if (idleNavKey) {
+        renderNavResults(idleNavKey);
+        idleEl.classList.add('nav-selected');
+      } else {
+        idleEl.classList.remove('nav-selected');
+      }
+      syncQuicknavChips();
+      updateInFilterVisibility();
+    });
+  });
+
+  function buildRowData(category) {
+    if (!category) {
+      return [
+        { type: 'asset', title: 'Asset name' },
+        { type: 'guideline', title: 'Guide line' },
+        { type: 'asset', title: 'Asset name' },
+        { type: 'collection', title: 'Collection' },
+        { type: 'asset', title: 'Asset name' }
+      ];
+    }
+    const meta = CATEGORIES[category];
+    const n = Math.min(meta.count, 5);
+    return Array.from({ length: n }, () => ({ type: meta.type, title: meta.title }));
+  }
+
+  function renderResultList(mode, category) {
+    const listEl = resultsMenu.querySelector('.sr-result-list[data-mode="' + mode + '"]');
+    const rows = buildRowData(category);
+    let photoIdx = 0, badgeIdx = 0;
+    listEl.innerHTML = rows.map((row) => {
+      const usePhoto = mode === 'nl' || row.type === 'asset';
+      const img = usePhoto
+        ? RESULT_PHOTOS[photoIdx++ % RESULT_PHOTOS.length]
+        : (row.type === 'guideline' ? GUIDELINE_ICON : COLLECTION_ICON);
+      const badge = row.type === 'asset' ? RESULT_BADGES[badgeIdx++ % RESULT_BADGES.length] : null;
+      const explain = mode === 'nl';
+      const thumb = usePhoto
+        ? '<a href="' + img + '" target="_blank" rel="noopener" style="flex-shrink:0;" onclick="event.stopPropagation()"><img class="sr-result-thumb" src="' + img + '" alt=""></a>'
+        : '<div class="sr-result-thumb icon-thumb"><img src="' + img + '" alt=""></div>';
+      const trailing = (explain ? '<span class="sr-explain-pill">' + EXPLAIN_SVG + 'Explainability</span>' : '')
+        + (badge ? '<span class="sr-type-badge">' + badge + '</span>' : '');
+      return '<div class="sr-result-row" data-type="' + row.type + '" data-title="' + row.title + '" data-img="' + img + '">' + thumb
+        + '<div class="sr-result-text"><div class="sr-result-title">' + row.title + '</div><div class="sr-result-desc">Description</div></div>'
+        + '<div class="sr-result-trailing">' + trailing + '</div></div>';
+    }).join('');
+  }
+
+  const MOCK_TAGS = ['Campaign 2024', 'Brand Identity', 'Product Launch', 'Social Media', 'Print Ready', 'Web Banners', 'Q3 Assets', 'Seasonal'];
+  const MOCK_META = ['EMEA', 'North America', 'Bynder Core', 'Photography', 'Approved', 'Q3 2024', 'Digital', 'APAC'];
+
+  function renderSuggestionChips() {
+    const suggestionsEl = document.getElementById('srSuggestions');
+    const tagChipsEl   = document.getElementById('srTagChips');
+    const metaChipsEl  = document.getElementById('srMetaChips');
+    if (!suggestionsEl) return;
+    const show = activeCategory === 'assets' && isResultsContext();
+    suggestionsEl.style.display = show ? '' : 'none';
+    if (!show) return;
+
+    tagChipsEl.innerHTML = MOCK_TAGS.map(t =>
+      `<button class="sr-suggestion-chip" type="button">${t}</button>`
+    ).join('');
+    metaChipsEl.innerHTML = MOCK_META.map(m =>
+      `<button class="sr-suggestion-chip" type="button">${m}</button>`
+    ).join('');
+
+    suggestionsEl.querySelectorAll('.sr-suggestion-chip').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSerp(placeholder.value.trim() || btn.textContent.trim());
+      });
+    });
+  }
+
+  function updateInFilterVisibility() {
+    const inResultsCtx = isResultsContext();
+    const isAssets = inResultsCtx
+      ? activeCategory === 'assets'
+      : (idleNavKey === null || idleNavKey === 'assets');
+    const inF = document.querySelector('.sr-filter[data-filter="in"]');
+    const inP = document.getElementById('srInPills');
+    if (inF) inF.classList.toggle('disabled', !isAssets);
+    if (inP) inP.style.display = isAssets ? '' : 'none';
+  }
+
+  function renderAllResultLists() {
+    // Render count chips
+    const countChips = document.getElementById('srCountChips');
+    if (countChips) {
+      countChips.innerHTML = ['assets', 'guidelines', 'collections'].map(cat => {
+        const count = CATEGORIES[cat].count;
+        const capCat = cat.charAt(0).toUpperCase() + cat.slice(1);
+        const isActive = activeCategory === cat;
+        return '<button class="sr-count-chip' + (isActive ? ' active' : '') + '" data-count-filter="' + cat + '">' + count + ' ' + capCat + '</button>';
+      }).join('');
+      countChips.querySelectorAll('.sr-count-chip').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const cat = chip.dataset.countFilter;
+          activeCategory = activeCategory === cat ? null : cat;
+          renderAllResultLists();
+        });
+      });
+    }
+
+    const container = document.getElementById('srResultsContainer');
+    if (!container) return;
+
+    if (!activeCategory) {
+      // Top Results: mixed-ranking single list (asset, guideline, collection interleaved)
+      container.innerHTML = '<div class="sr-section" style="padding-top:6px;">'
+        + '<div class="sr-section-title-row">'
+        + '<div class="sr-section-title" id="srResultsTitle">Top Results</div>'
+        + '<a class="sr-view-all" id="srViewAll"></a>'
+        + '</div>'
+        + '<div class="sr-result-list" data-mode="nl"></div>'
+        + '<div class="sr-result-list" data-mode="keyword"></div>'
+        + '</div>';
+      renderResultList('nl', null);
+      renderResultList('keyword', null);
+    } else {
+      // Single category view with mode switching (NL vs keyword)
+      const capCat = activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1);
+      container.innerHTML = '<div class="sr-section" style="padding-top:6px;">'
+        + '<div class="sr-section-title-row">'
+        + '<div class="sr-section-title" id="srResultsTitle">' + capCat + '</div>'
+        + '<a class="sr-view-all visible" id="srViewAll">View all (' + CATEGORIES[activeCategory].count + ')</a>'
+        + '</div>'
+        + '<div class="sr-result-list" data-mode="nl"></div>'
+        + '<div class="sr-result-list" data-mode="keyword"></div>'
+        + '</div>';
+      renderResultList('nl', activeCategory);
+      renderResultList('keyword', activeCategory);
+    }
+
+    updateInFilterVisibility();
+    renderSuggestionChips();
+    syncQuicknavChips();
+  }
+
+  renderAllResultLists();
+
+  // Mock "search": always the same static result set, just to demonstrate
+  // the idle -> loading -> results flow and the Keyword vs Natural-language
+  // difference. Skips the delay if re-focusing on a query already resolved.
+  let loadingTimer = null;
+  let resultsShownFor = null;
+
+  // Edge case: jumbled / unrecognized query. Mock heuristic only — a long,
+  // single-token, vowel-starved string reads as gibberish (catches things
+  // like "sdfsvxvdsfas"; real words keep a normal vowel ratio).
+  function looksGibberish(query) {
+    const clean = query.replace(/\s+/g, '');
+    if (clean.length < 6) return false;
+    const vowels = (clean.match(/[aeiou]/gi) || []).length;
+    return vowels / clean.length < 0.2;
+  }
+
+  function renderNoResults(query) {
+    // v1: simple no results, no "did you mean"
+  }
+
+  function showLoadingThenResults(query) {
+    resultsMenu.dataset.view = 'loading';
+    setFilterLabels(false);
+    syncQuicknavChips();
+    clearTimeout(loadingTimer);
+    loadingTimer = setTimeout(() => {
+      resultsShownFor = query;
+      if (looksGibberish(query)) {
+        renderNoResults(query);
+        resultsMenu.dataset.view = 'no-results';
+        syncQuicknavChips();
+        return;
+      }
+      resultsMenu.dataset.view = 'results';
+      setFilterLabels(true);
+      // Carry the domain over from whatever chip was selected before typing
+      // (e.g. clicked "Collections" to browse, then searched) — search
+      // results stay scoped to that category instead of resetting to the
+      // mixed cross-domain "Top Results". No chip pre-selected = null =
+      // existing mixed-results default, unchanged.
+      activeCategory = idleNavKey || null;
+      renderAllResultLists();
+    }, 2200);
+  }
+
+  function updateResultsView() {
+    const query = placeholder.value.trim();
+    if (query.length < 2) {
+      clearTimeout(loadingTimer);
+      resultsMenu.dataset.view = 'idle';
+      resultsShownFor = null;
+      setFilterLabels(false);
+      syncQuicknavChips();
+      return;
+    }
+    if (resultsShownFor === query && (resultsMenu.dataset.view === 'results' || resultsMenu.dataset.view === 'no-results')) return;
+    showLoadingThenResults(query);
+  }
+
+  // ---- Search by image ----
+  const searchByImageBtn = document.getElementById('searchByImageBtn');
+  const imgBackBtn = document.getElementById('imgBackBtn');
+  const imgUploadBtn = document.getElementById('imgUploadBtn');
+  const imgPasteInput = document.getElementById('imgPasteInput');
+  const imgPasteSearchBtn = document.getElementById('imgPasteSearchBtn');
+  const srSelectedImageThumb = document.getElementById('srSelectedImageThumb');
+  const srSelectedImageName = document.getElementById('srSelectedImageName');
+  const srSelectedImageClear = document.getElementById('srSelectedImageClear');
+
+  function enterImageMode() {
+    closeModeMenu();
+    searchShell.classList.add('results-open', 'image-mode');
+    headerEl.classList.add('search-active');
+    resultsMenu.dataset.view = 'image-upload';
+  }
+  function exitImageMode() {
+    searchShell.classList.remove('image-mode');
+    imgPasteInput.value = '';
+    imgPasteSearchBtn.disabled = true;
+    updateResultsView();
+  }
+  function enterImageResults(name, src) {
+    closeResults();
+    openSerp('image: ' + name);
+  }
+
+  searchByImageBtn.addEventListener('click', (e) => { e.stopPropagation(); enterImageMode(); });
+  imgBackBtn.addEventListener('click', (e) => { e.stopPropagation(); exitImageMode(); placeholder.focus(); });
+
+  // Mock only — jumps straight to results with a placeholder image/name,
+  // no real file picker (per request: "let Upload lead to the results,
+  // just as a mock").
+  imgUploadBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    enterImageResults('uploaded-image.jpg', RESULT_PHOTOS[0]);
+  });
+
+  function doPasteSearch() {
+    const url = imgPasteInput.value.trim();
+    if (!url) return;
+    const name = url.split('/').pop().split('?')[0] || 'Image link';
+    enterImageResults(name, url);
+  }
+  imgPasteInput.addEventListener('click', (e) => e.stopPropagation());
+  imgPasteInput.addEventListener('input', () => {
+    imgPasteSearchBtn.disabled = imgPasteInput.value.trim().length === 0;
+  });
+  imgPasteInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && imgPasteInput.value.trim()) doPasteSearch();
+  });
+  imgPasteSearchBtn.addEventListener('click', (e) => { e.stopPropagation(); doPasteSearch(); });
+
+  srSelectedImageClear.addEventListener('click', (e) => {
+    e.stopPropagation();
+    imgPasteInput.value = '';
+    imgPasteSearchBtn.disabled = true;
+    resultsMenu.dataset.view = 'image-upload';
+  });
+
+  placeholder.addEventListener('focus', openResults);
+  placeholder.addEventListener('input', () => {
+    searchShell.classList.toggle('has-text', placeholder.value.length > 0);
+    updateResultsView();
+  });
+  placeholder.addEventListener('click', (e) => e.stopPropagation());
+
+  clearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    placeholder.value = '';
+    searchShell.classList.remove('has-text');
+    updateResultsView();
+    placeholder.focus();
+  });
+
+  resultsMenu.addEventListener('click', (e) => e.stopPropagation());
+
+  // ---- Location / Type / In filter submenus ----
+  const filterEls = document.querySelectorAll('.sr-filter');
+
+  function closeAllFilters(except) {
+    filterEls.forEach((f) => { if (f !== except) f.classList.remove('open'); });
+  }
+  function updateChipLabel(filterEl, text, active) {
+    filterEl.querySelector('.sr-filter-label').textContent = text;
+    filterEl.querySelector('.sr-filter-chip').classList.toggle('active-filter', active);
+  }
+
+  filterEls.forEach((filterEl) => {
+    const chip = filterEl.querySelector('.sr-filter-chip');
+    const submenu = filterEl.querySelector('.sr-filter-submenu');
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !filterEl.classList.contains('open');
+      closeAllFilters();
+      filterEl.classList.toggle('open', willOpen);
+    });
+    submenu.addEventListener('click', (e) => e.stopPropagation());
+  });
+
+  // clicking elsewhere in the results menu (recent searches, quick nav, etc.)
+  // closes any open filter submenu without closing the whole results menu
+  resultsMenu.addEventListener('click', (e) => {
+    if (!e.target.closest('.sr-filter')) closeAllFilters();
+  });
+
+  // In: multi-select checkboxes — selection reflected as pills in the search bar
+  const inFilter = document.querySelector('.sr-filter[data-filter="in"]');
+  const inPillsEl = document.getElementById('srInPills');
+  const ABBR = { Title: 'T', Description: 'D' };
+  const frameEl = document.getElementById('frame'); // hoisted here — renderInPills() needs it at init
+
+  function renderInPills() {
+    const checked = Array.from(inFilter.querySelectorAll('input[type="checkbox"]:checked'));
+    // Pills only materialise in the sticky search bar (SERP open).
+    // In Spotlight the Where chip label is the only signal.
+    const inSerp = frameEl.classList.contains('serp-open');
+    // Ensure the pills container is visible in SERP (updateInFilterVisibility may
+    // have hidden it when the user was browsing a non-asset quicknav before searching).
+    if (inSerp) inPillsEl.style.display = '';
+    inPillsEl.innerHTML = inSerp ? checked.map((cb) =>
+      `<span class="sr-in-pill">
+        <span class="pill-abbr">${ABBR[cb.value] || cb.value[0]}</span>
+        ${cb.value}
+        <button class="pill-remove" data-value="${cb.value}" type="button" aria-label="Remove ${cb.value}">×</button>
+      </span>`
+    ).join('') : '';
+
+    // Sync chip label
+    if (checked.length === 0) {
+      updateChipLabel(inFilter, 'Where', false);
+    } else if (checked.length === 1) {
+      updateChipLabel(inFilter, checked[0].value, true);
+    } else {
+      updateChipLabel(inFilter, 'Where: All', true);
+    }
+
+    // Pill × buttons
+    inPillsEl.querySelectorAll('.pill-remove').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cb = inFilter.querySelector(`input[value="${btn.dataset.value}"]`);
+        if (cb) { cb.checked = false; renderInPills(); }
+      });
+    });
+  }
+
+  inFilter.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener('change', renderInPills);
+  });
+  // Belt-and-suspenders: also fire on click of the label row so the chip
+  // label updates even if the change event doesn't bubble in all contexts.
+  inFilter.querySelectorAll('label.sr-sub-check-row').forEach((lbl) => {
+    lbl.addEventListener('click', () => setTimeout(renderInPills, 0));
+  });
+
+  // Close "In" dropdown on outside click (handled by closeAllFilters already),
+  // also close on Escape while open
+  renderInPills(); // initial state
+  updateInFilterVisibility(); // hide "In" when not on assets
+
+  // ---- Asset Detail View (ADV) ----
+  // Opens on top of everything, incl. an open search dropdown, when a
+  // direct asset result is clicked. Closing it just hides this layer —
+  // the dropdown underneath is untouched, so it "reverts" automatically.
+  const adv = document.getElementById('assetDetailView');
+  const advCloseBtn = document.getElementById('advCloseBtn');
+  const advImage = document.getElementById('advImage');
+  const advTitle = document.getElementById('advTitle');
+  const advNameInput = document.getElementById('advNameInput');
+  const advPrev = document.getElementById('advPrev');
+  const advNext = document.getElementById('advNext');
+  let advPhotoIdx = 0;
+
+  function openAssetDetail(title, src) {
+    advTitle.textContent = title || 'Asset name';
+    advNameInput.value = title || 'Asset name';
+    advImage.src = src || RESULT_PHOTOS[0];
+    const idx = RESULT_PHOTOS.indexOf(src);
+    advPhotoIdx = idx === -1 ? 0 : idx;
+    adv.classList.add('open');
+  }
+  function closeAssetDetail() {
+    adv.classList.remove('open');
+  }
+  function stepAssetDetail(dir) {
+    advPhotoIdx = (advPhotoIdx + dir + RESULT_PHOTOS.length) % RESULT_PHOTOS.length;
+    advImage.src = RESULT_PHOTOS[advPhotoIdx];
+  }
+  advCloseBtn.addEventListener('click', (e) => { e.stopPropagation(); closeAssetDetail(); });
+  advPrev.addEventListener('click', (e) => { e.stopPropagation(); stepAssetDetail(-1); });
+  advNext.addEventListener('click', (e) => { e.stopPropagation(); stepAssetDetail(1); });
+  adv.addEventListener('click', (e) => e.stopPropagation());
+
+  // Only asset-type rows open the ADV — guidelines/collections would open
+  // their own detail views, which this prototype doesn't cover yet.
+  resultsMenu.addEventListener('click', (e) => {
+    const row = e.target.closest('.sr-result-row');
+    if (row && row.dataset.type === 'asset') {
+      e.stopPropagation();
+      openAssetDetail(row.dataset.title, row.dataset.img);
+    }
+  });
+
+  // ---- SERP (search results page) ----
+  // Opens on Enter in the search input — a separate full page, not a
+  // dropdown, so it replaces the filter-row + grid below the header.
+  const serpQueryEl = document.getElementById('serpQuery');
+  const serpGrid = document.getElementById('serpGrid');
+  const sbNlsBadge = document.getElementById('sbNlsBadge');
+  const serpSidebarItems = document.querySelectorAll('.serp-sidebar .sb-item');
+  const serpViewTabs = document.querySelectorAll('.serp-view-options .view-toggle .tab');
+
+  // Same shell for every facet, no redirects — clicking All results / Assets
+  // / Collections just swaps what renders inside #serpGrid, and the grid/list
+  // toggle swaps the layout on top of that. Guidelines and the Meta property
+  // / Filter facets stay visual-only for now (not built out yet) — clicking
+  // them highlights but doesn't change the grid, same as before.
+  let serpCategory = 'all';
+  let serpView = 'grid';
+
+  const SERP_COLLECTIONS = [
+    { title: 'Collection 1', count: 14 },
+    { title: 'Collection 2', count: 20 },
+    { title: 'Collection 3', count: 24 }
+  ];
+
+  function serpAssetCardHtml(img) {
+    return '<div class="card"><a href="' + img + '" target="_blank" rel="noopener" class="card-frame">'
+      + '<img class="visual" src="' + img + '" alt="">'
+      + '<div class="card-overlay"><div class="card-actions">'
+      + '<div class="card-more"><svg width="16" height="4" viewBox="0 0 16 4" fill="none"><circle cx="2" cy="2" r="1.5" fill="#212c40"/><circle cx="8" cy="2" r="1.5" fill="#212c40"/><circle cx="14" cy="2" r="1.5" fill="#212c40"/></svg></div>'
+      + '<div class="card-select"></div></div></div></a>'
+      + '<div class="card-header"><div class="card-info"><div class="card-title">Card title</div><div class="card-detail">Card detail</div></div></div></div>';
+  }
+  function serpAssetListRowHtml(img) {
+    return '<div class="list-row"><a href="' + img + '" target="_blank" rel="noopener" class="list-thumb"><img class="visual" src="' + img + '" alt=""></a>'
+      + '<div class="list-info"><div class="card-title">Card title</div><div class="card-detail">Card detail</div>'
+      + '<div class="list-desc">Card description</div><div class="list-desc">Card description</div>'
+      + '<div class="list-label">Label</div></div></div>';
+  }
+  function serpCollectionCardHtml(c, img) {
+    return '<div class="card"><a href="' + img + '" target="_blank" rel="noopener" class="card-frame">'
+      + '<img class="visual" src="' + img + '" alt="">'
+      + '<div class="card-count-badge">' + c.count + '</div></a>'
+      + '<div class="card-header"><div class="card-info"><div class="card-title">' + c.title + '</div><div class="card-detail">Card detail</div></div></div></div>';
+  }
+  function serpCollectionListRowHtml(c, img) {
+    return '<div class="list-row"><a href="' + img + '" target="_blank" rel="noopener" class="list-thumb"><img class="visual" src="' + img + '" alt=""></a>'
+      + '<div class="list-info"><div class="card-title">' + c.title + '</div><div class="card-detail">Card detail</div>'
+      + '<div class="list-desc">Card description</div><div class="list-desc">Card description</div>'
+      + '<div class="list-label">Label</div></div></div>';
+  }
+
+  function renderSerpResults() {
+    serpGrid.classList.toggle('view-list', serpView === 'list');
+    if (serpCategory === 'collections') {
+      serpGrid.innerHTML = SERP_COLLECTIONS.map((c, i) => {
+        const img = RESULT_PHOTOS[i % RESULT_PHOTOS.length];
+        return serpView === 'list' ? serpCollectionListRowHtml(c, img) : serpCollectionCardHtml(c, img);
+      }).join('');
+    } else {
+      serpGrid.innerHTML = Array.from({ length: 12 }, (_, i) => {
+        const img = RESULT_PHOTOS[i % RESULT_PHOTOS.length];
+        return serpView === 'list' ? serpAssetListRowHtml(img) : serpAssetCardHtml(img);
+      }).join('');
+    }
+  }
+
+  function openSerp(query) {
+    closeResults();
+    closeModeMenu();
+    serpQueryEl.textContent = '"' + query + '"';
+    sbNlsBadge.classList.toggle('show', currentMode === 'nl');
+    serpCategory = 'all';
+    serpView = 'grid';
+    serpSidebarItems.forEach((i) => i.classList.toggle('active', i.querySelector('.sb-label').textContent.trim() === 'All results'));
+    serpViewTabs.forEach((t, i) => t.classList.toggle('active', i === 0));
+    renderSerpResults();
+    frameEl.classList.add('serp-open');
+    renderInPills(); // materialise Where pills in sticky search bar
+  }
+  function closeSerp() {
+    frameEl.classList.remove('serp-open');
+    renderInPills(); // clear pills when returning to Spotlight
+  }
+
+  placeholder.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const query = placeholder.value.trim();
+    if (query.length >= 2) {
+      e.preventDefault();
+      openSerp(query);
+    }
+  });
+
+  // Sidebar facet rows — All results / Assets / Collections switch real
+  // content in the same #serpGrid. Guidelines / Meta property / Filter rows
+  // highlight only, content for those isn't built yet.
+  serpSidebarItems.forEach((item) => {
+    item.addEventListener('click', () => {
+      serpSidebarItems.forEach((i) => i.classList.remove('active'));
+      item.classList.add('active');
+      const label = item.querySelector('.sb-label').textContent.trim();
+      if (label === 'Collections') {
+        serpCategory = 'collections';
+        renderSerpResults();
+      } else if (label === 'All results' || label === 'Assets') {
+        serpCategory = 'all';
+        renderSerpResults();
+      }
+    });
+  });
+
+  // Grid/list toggle — same two-tab pattern as the base page's view-options,
+  // scoped to the SERP so it doesn't also flip the base grid's toggle.
+  serpViewTabs.forEach((tab, idx) => {
+    tab.addEventListener('click', () => {
+      serpViewTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      serpView = idx === 0 ? 'grid' : 'list';
+      renderSerpResults();
+    });
+  });
+
+  // Logo doubles as "back to results" while the SERP is open.
+  document.querySelector('.logo').addEventListener('click', () => {
+    if (frameEl.classList.contains('serp-open')) closeSerp();
+  });
+
+  // ---- Shared outside-click / escape handling ----
+  document.addEventListener('click', (e) => {
+    if (!searchShell.contains(e.target)) {
+      closeResults();
+      closeModeMenu();
+      closeFilterModeMenu();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (adv.classList.contains('open')) {
+      if (e.key === 'Escape') closeAssetDetail();
+      return;
+    }
+    if (frameEl.classList.contains('serp-open')) {
+      if (e.key === 'Escape') closeSerp();
+      return;
+    }
+    if (e.key === 'Enter') {
+      const query = placeholder.value.trim();
+      if (query.length >= 2) {
+        e.preventDefault();
+        openSerp(query);
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      closeResults();
+      closeModeMenu();
+      placeholder.blur();
+    }
+  });
+</script>
+
+</body>
+</html>
