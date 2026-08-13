@@ -282,7 +282,7 @@ function renderFlyoutList(){
   var stats = extStats(cat);
 
   var clearBtn = document.getElementById('tfClearBtn');
-  clearBtn.disabled = stats.checkedItems <= 2;
+  clearBtn.disabled = stats.isAll;
 
   var allRow = document.createElement('div');
   allRow.className = 'bd-row all-row';
