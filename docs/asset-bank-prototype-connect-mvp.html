@@ -1808,6 +1808,7 @@
     idleNavKey = null;
     document.querySelector('.sr-idle').classList.remove('nav-selected');
     syncQuicknavChips();
+    renderSuggestionChips();
   }
 
   // Location/Type/In labels swap to the broader "All locations / All assets /
@@ -1890,7 +1891,7 @@
     quicknavChips.forEach((chip) => {
       const key = chip.dataset.nav;
       const capKey = key.charAt(0).toUpperCase() + key.slice(1);
-      const connectDisabled = (key === 'collections' || key === 'guidelines');
+      const connectDisabled = true; // all chips disabled in idle — no counts until search runs
       if (resultsCtx) {
         // Enable all chips in results — counts are available from search
         chip.disabled = false;
@@ -2090,6 +2091,7 @@
       resultsShownFor = null;
       setFilterLabels(false);
       syncQuicknavChips();
+      renderSuggestionChips();
       return;
     }
     if (resultsShownFor === query && (resultsMenu.dataset.view === 'results' || resultsMenu.dataset.view === 'no-results')) return;
