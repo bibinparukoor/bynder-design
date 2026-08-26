@@ -1747,6 +1747,7 @@
   // ---- Results dropdown (opens on focusing the input) ----
   function openResults() {
     closeModeMenu();
+    if (frameEl.classList.contains('serp-open')) closeSerp();
     searchShell.classList.add('results-open');
     headerEl.classList.add('search-active');
     if (!searchShell.classList.contains('image-mode')) updateResultsView();
