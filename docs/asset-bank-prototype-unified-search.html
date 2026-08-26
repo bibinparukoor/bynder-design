@@ -754,6 +754,7 @@
   .match-label { font-size: 11px; color: #8b919b; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
   .match-chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .match-chip {
+    display: inline-flex; align-items: center; gap: 3px;
     font-size: 12px; color: #4f5867; background: #fff;
     border: 1px solid rgba(3,16,38,0.15); border-radius: 9999px;
     padding: 3px 10px; cursor: pointer; white-space: nowrap; line-height: 18px;
@@ -2285,10 +2286,11 @@
     ['visual'],
     ['visual', 'metadata'],
   ];
+  const SPARKLE_SVG = '<svg width="11" height="11" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;vertical-align:middle;margin-right:3px"><path d="M7 1L8.5 5.5L13 7L8.5 8.5L7 13L5.5 8.5L1 7L5.5 5.5L7 1Z" fill="#126DFE" opacity=".75"/></svg>';
   function matchChipsHtml(idx) {
     const types = MATCH_PATTERNS[idx % MATCH_PATTERNS.length];
     const chips = types.map(t =>
-      '<button class="match-chip" data-match="' + t + '">' + t.charAt(0).toUpperCase() + t.slice(1) + '</button>'
+      '<button class="match-chip" data-match="' + t + '">' + SPARKLE_SVG + t.charAt(0).toUpperCase() + t.slice(1) + '</button>'
     ).join('');
     return '<div class="card-match-section"><div class="match-label">Match Criteria</div><div class="match-chips">' + chips + '</div></div>';
   }
