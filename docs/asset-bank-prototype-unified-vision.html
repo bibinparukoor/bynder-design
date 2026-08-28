@@ -1965,7 +1965,7 @@
     const tagChipsEl   = document.getElementById('srTagChips');
     const metaChipsEl  = document.getElementById('srMetaChips');
     if (!suggestionsEl) return;
-    const show = activeCategory === 'assets' && isResultsContext();
+    const show = isResultsContext() && (activeCategory === 'assets' || (activeCategory === null && currentMode === 'nl'));
     suggestionsEl.style.display = show ? '' : 'none';
     if (!show) return;
 
