@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CXUC Guide Search Widget - Prototype</title>
+<style>
+  :root{
+    --gray-1000:#031028; --gray-900:#122034; --gray-800:#212C40; --gray-700:#343E50;
+    --gray-600:#4F5867; --gray-500:#697783; --gray-400:#898BA2; --gray-300:#B8BCC2;
+    --gray-200:#D5D7DA; --gray-100:#E8E9EB; --gray-75:#EDEEF0; --gray-50:#F3F3F4; --gray-25:#F8F8F9;
+    --primary:#1D6BF3; --primary-hover:#155FDB; --danger:#D33; --white:#fff;
+    --radius:6px; --shadow-dropdown:0 4px 16px rgba(3,16,40,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--gray-50); color:var(--gray-900); font-size:14px;
+  }
+  .topbar{
+    background:var(--gray-1000); color:var(--white); padding:12px 24px; font-size:13px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .topbar .brand{font-weight:600; letter-spacing:.02em;}
+  .layout{display:flex; max-width:1180px; margin:24px auto; gap:24px; padding:0 24px;}
+  .sidebar{
+    width:220px; flex-shrink:0; background:var(--white); border:1px solid var(--gray-100);
+    border-radius:var(--radius); padding:16px;
+  }
+  .sidebar h4{margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--gray-500);}
+  .sidebar ul{list-style:none; margin:0 0 16px; padding:0;}
+  .sidebar li{padding:7px 8px; border-radius:4px; color:var(--gray-700); cursor:default;}
+  .sidebar li.active{background:var(--gray-75); color:var(--gray-900); font-weight:600;}
+  .content{flex:1; background:var(--white); border:1px solid var(--gray-100); border-radius:var(--radius); padding:32px; min-width:0;}
+  .content h1{margin-top:0; font-size:22px;}
+  .content p{color:var(--gray-600); line-height:1.6;}
+
+  /* Search widget block, as it would sit inside a Section/Column */
+  .widget-wrap{margin:20px 0 28px; position:relative; max-width:420px;}
+  .widget-label{font-size:11px; color:var(--gray-500); margin-bottom:6px;}
+  .search-input{
+    display:flex; align-items:center; gap:8px; background:var(--white);
+    border:1px solid var(--gray-200); border-radius:var(--radius); padding:9px 12px;
+    transition:border-color .15s;
+  }
+  .search-input:focus-within{border-color:var(--primary); box-shadow:0 0 0 3px rgba(29,107,243,0.12);}
+  .search-input svg{flex-shrink:0; color:var(--gray-500);}
+  .search-input input{
+    border:none; outline:none; flex:1; font-size:14px; color:var(--gray-900); background:transparent;
+  }
+  .search-input input::placeholder{color:var(--gray-500);}
+  .search-input .clear-btn{
+    display:none; border:none; background:transparent; cursor:pointer; color:var(--gray-500);
+    align-items:center; padding:2px;
+  }
+  .search-input .clear-btn.show{display:flex;}
+
+  .results-panel{
+    position:absolute; top:calc(100% + 6px); left:0; right:0; background:var(--white);
+    border:1px solid var(--gray-100); border-radius:var(--radius); box-shadow:var(--shadow-dropdown);
+    max-height:340px; overflow-y:auto; display:none; z-index:20;
+  }
+  .results-panel.open{display:block;}
+  .result-item{
+    display:flex; flex-direction:column; gap:2px; padding:10px 14px; border-bottom:1px solid var(--gray-75);
+    cursor:pointer;
+  }
+  .result-item:last-child{border-bottom:none;}
+  .result-item:hover{background:var(--gray-25);}
+  .result-crumb{font-size:11px; color:var(--gray-500);}
+  .result-title{font-size:13.5px; font-weight:600; color:var(--gray-900);}
+  .result-snippet{font-size:12.5px; color:var(--gray-600); line-height:1.4;}
+  .result-snippet mark{background:#FDE6A8; color:var(--gray-900); border-radius:2px; padding:0 1px;}
+
+  .empty-state{padding:28px 20px; text-align:center;}
+  .empty-state .icon{color:var(--gray-300); margin-bottom:8px;}
+  .empty-state .title{font-weight:600; color:var(--gray-800); font-size:13.5px;}
+  .empty-state .sub{color:var(--gray-500); font-size:12.5px; margin-top:2px;}
+
+  .skeleton-row{padding:12px 14px;}
+  .skeleton-bar{height:9px; background:var(--gray-100); border-radius:3px; margin-bottom:6px; animation:pulse 1.1s infinite ease-in-out;}
+  .skeleton-bar.w60{width:60%;} .skeleton-bar.w90{width:90%;} .skeleton-bar.w40{width:40%;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  .controls{
+    margin-top:40px; padding-top:20px; border-top:1px dashed var(--gray-200);
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+  }
+  .controls span{font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:.03em;}
+  .btn-sec{
+    border:1px solid var(--gray-200); background:var(--white); border-radius:var(--radius);
+    padding:6px 12px; font-size:12.5px; cursor:pointer; color:var(--gray-700);
+  }
+  .btn-sec.active{background:var(--primary); color:var(--white); border-color:var(--primary);}
+
+  /* Mobile view simulation */
+  .mobile-frame{
+    display:none; width:320px; border:1px solid var(--gray-200); border-radius:16px; padding:14px;
+    background:var(--white); margin:16px auto 0;
+  }
+  .mobile-frame.show{display:block;}
+  .mobile-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .mobile-icon-btn{
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--gray-200); background:var(--white);
+    display:flex; align-items:center; justify-content:center; color:var(--gray-700); cursor:pointer;
+  }
+  .mobile-overlay{display:none; flex-direction:column; gap:10px;}
+  .mobile-overlay.open{display:flex;}
+  .mobile-overlay .search-input{max-width:none;}
+
+  .disclaimer{
+    max-width:1180px; margin:0 auto 32px; padding:0 24px 24px; text-align:center;
+    color:var(--gray-500); font-size:12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Bynder Brand Guidelines</div>
+  <div>Preview mode</div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <h4>Chapters</h4>
+    <ul>
+      <li class="active">Voice &amp; Tone</li>
+      <li>Logo Usage</li>
+      <li>Color Palette</li>
+      <li>Typography</li>
+      <li>Imagery</li>
+    </ul>
+    <h4>Pages</h4>
+    <ul>
+      <li class="active">Writing principles</li>
+      <li>Tone of voice</li>
+      <li>Grammar &amp; style</li>
+    </ul>
+  </div>
+
+  <div class="content">
+    <h1>Writing principles</h1>
+    <p>Every piece of copy we write should sound like one brand talking, whether it's a tooltip or a keynote. Below, the guide's search entry point - placed here by the content manager as a normal widget, same as a Button or Card.</p>
+
+    <div class="widget-wrap">
+      <div class="widget-label">Search widget (guide-scoped)</div>
+      <div class="search-input" id="searchBox">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search this guide" autocomplete="off">
+        <button class="clear-btn" id="clearBtn" aria-label="Clear">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="results-panel" id="resultsPanel"></div>
+    </div>
+
+    <p>The rest of the guide content continues below the widget, unaffected by whether the results panel is open.</p>
+
+    <div class="controls">
+      <span>Prototype states -</span>
+      <button class="btn-sec active" data-state="results">Results</button>
+      <button class="btn-sec" data-state="loading">Loading</button>
+      <button class="btn-sec" data-state="empty">No matches</button>
+      <button class="btn-sec" data-state="mobile" id="mobileToggle">Mobile view</button>
+    </div>
+
+    <div class="mobile-frame" id="mobileFrame">
+      <div class="mobile-top">
+        <strong style="font-size:13px;">Writing principles</strong>
+        <div class="mobile-icon-btn" id="mobileSearchTrigger">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+      </div>
+      <div class="mobile-overlay" id="mobileOverlay">
+        <div class="search-input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search this guide" value="tone of voice">
+        </div>
+        <div class="results-panel open" style="position:static; box-shadow:none; border:1px solid var(--gray-100);" id="mobileResults"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="disclaimer">Made with AI, may not be using approved interactions or components.</div>
+
+<script>
+const RESULTS_HTML = `
+  <div class="result-item">
+    <div class="result-crumb">Voice &amp; Tone &gt; Tone of voice</div>
+    <div class="result-title">Tone of voice</div>
+    <div class="result-snippet">Our <mark>tone of voice</mark> balances enterprise maturity with a clear, engaging approach...</div>
+  </div>
+  <div class="result-item">
+    <div class="result-crumb">Voice &amp; Tone &gt; Writing principles</div>
+    <div class="result-title">Writing principles</div>
+    <div class="result-snippet">Keep the same <mark>tone of voice</mark> whether it's a tooltip or a keynote...</div>
+  </div>
+  <div class="result-item">
+    <div class="result-crumb">Logo Usage (chapter)</div>
+    <div class="result-title">Logo Usage</div>
+    <div class="result-snippet">References <mark>tone of voice</mark> when logos appear alongside marketing copy...</div>
+  </div>
+`;
+const LOADING_HTML = `
+  <div class="skeleton-row"><div class="skeleton-bar w40"></div><div class="skeleton-bar w90"></div></div>
+  <div class="skeleton-row"><div class="skeleton-bar w40"></div><div class="skeleton-bar w60"></div></div>
+`;
+const EMPTY_HTML = `
+  <div class="empty-state">
+    <div class="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+    <div class="title">No matches in this guide</div>
+    <div class="sub">Try a different word or phrase</div>
+  </div>
+`;
+
+const panel = document.getElementById('resultsPanel');
+const input = document.getElementById('searchInput');
+const clearBtn = document.getElementById('clearBtn');
+const buttons = document.querySelectorAll('.controls .btn-sec');
+const mobileFrame = document.getElementById('mobileFrame');
+const layout = document.querySelector('.layout');
+document.getElementById('mobileResults').innerHTML = RESULTS_HTML;
+
+function setState(state){
+  buttons.forEach(b => b.classList.toggle('active', b.dataset.state === state));
+  if(state === 'mobile'){
+    layout.style.display = 'none';
+    mobileFrame.classList.add('show');
+    return;
+  }
+  layout.style.display = 'flex';
+  mobileFrame.classList.remove('show');
+
+  panel.classList.add('open');
+  if(state === 'results'){ panel.innerHTML = RESULTS_HTML; input.value = 'tone of voice'; clearBtn.classList.add('show'); }
+  if(state === 'loading'){ panel.innerHTML = LOADING_HTML; input.value = 'ton'; clearBtn.classList.add('show'); }
+  if(state === 'empty'){ panel.innerHTML = EMPTY_HTML; input.value = 'xyzzy'; clearBtn.classList.add('show'); }
+}
+
+buttons.forEach(b => b.addEventListener('click', () => setState(b.dataset.state)));
+clearBtn.addEventListener('click', () => { input.value=''; panel.classList.remove('open'); clearBtn.classList.remove('show'); });
+input.addEventListener('focus', () => { if(input.value) panel.classList.add('open'); });
+
+document.getElementById('mobileSearchTrigger').addEventListener('click', () => {
+  document.getElementById('mobileOverlay').classList.toggle('open');
+});
+
+setState('results');
+</script>
+
+</body>
+</html>
