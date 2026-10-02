@@ -109,6 +109,7 @@ body.dsl [data-ds]{outline:1px dashed #d54035;outline-offset:-1px}
 .menu .dng{color:var(--danger)}
 .menu.up{top:auto!important;bottom:calc(100% - 36px)}
 .hatch{width:20px;height:20px;border-radius:4px;background:repeating-linear-gradient(135deg,#0310264d 0 2px,transparent 2px 5px)}
+.hintnote{position:absolute;right:24px;top:168px;width:280px;z-index:20;display:flex;align-items:flex-start;gap:4px;padding:6px 4px 6px 10px}.hintnote span{flex:1;padding-top:6px}.hintnote .iconbtn{width:28px;height:28px;flex-basis:28px}.hintnote .iconbtn:hover{background:#b8860b1f}
 .pnote{border:1px dashed #b8860b;background:#fffaf0;color:#6b4a00;border-radius:var(--r);padding:6px 10px;font-size:12px;line-height:16px}
 
 /* ============================ BYNDER SHELL ============================ */
@@ -374,7 +375,7 @@ const baseProfiles=()=>[
 const newFace=()=>({people:basePeople(),filter:'all',sort:'count',dir:'desc',q:'',qOpen:false,size:0,sel:[],peek:null,assetsOpen:true,
   nm:false,nmActive:null,nmDraft:'',nmDone:0,nmTotal:0,nmSkip:[],pend:true,loading:false,state:null,thumbFail:false,work:{}});
 const S={screen:'bank',prev:'bank',role:'admin',profiles:baseProfiles(),sim:{cap:false,vis:false,slow:false},ds:false,devOpen:true,
-  scen:'bank',menu:null,sortOpen:false,gearOpen:false,modal:null,toast:null,focus:null,hint:true,
+  scen:'bank',menu:null,sortOpen:false,gearOpen:false,modal:null,toast:null,focus:null,hint:true,hintNo:true,
   bankFilter:null,permsSel:'admin',permsClosed:{},f:newFace()};
 
 const prof=()=>S.profiles.find(x=>x.id===S.role);
@@ -422,6 +423,7 @@ function shellTop(cur,full){
     ${full?`<span class="ni">${ic('moreV',16)} More ${ic('caret',14)}</span>`:''}<span class="sp"></span>
     <button class="btn pri" data-ds="Button / Primary">${ic('upload')}Upload media</button></div>`;
 }
+const hintNote=txt=>`<div class="pnote hintnote" role="note"><span>${txt}</span><button class="iconbtn" data-act="hint-x" aria-label="Dismiss hint">${ic('close',16)}</button></div>`;
 function bankPage(){
   const can=canAccess(), bf=S.bankFilter;
   const items=Array.from({length:8},(_,i)=>FACES[(i*3+1)%28]);
@@ -434,8 +436,8 @@ function bankPage(){
    <button class="iconbtn" data-tip="Duplicate Manager">${ic('copy')}</button><button class="iconbtn">${ic('zoom')}</button>
    <span style="display:flex;border:1px solid var(--input-stroke);border-radius:var(--r);overflow:hidden"><span style="background:var(--primary);color:#fff;width:36px;height:32px;display:grid;place-items:center">${ic('grid',18)}</span><span style="width:36px;height:32px;display:grid;place-items:center">${ic('list',18)}</span></span></div>
   <div class="bgrid">${items.map((src,i)=>`<div class="acard" data-ds="Card"><div class="im"><img src="${src}" alt=""><span class="jpg">JPG</span></div><div class="tx">${assetName(i)}<small>Card detail</small></div></div>`).join('')}</div>
-  ${S.hint&&can?'<div class="pnote" style="position:absolute;right:24px;top:168px;width:260px;z-index:20">Prototype hint: the face icon is the proposed entry point. It only renders for profiles with Access face recognition management.</div>':''}
-  ${!can?'<div class="pnote" style="position:absolute;right:24px;top:168px;width:260px;z-index:20">This profile has no page access, so the entry icon does not render.</div>':''}
+  ${S.hint&&can?hintNote('Prototype hint: the face icon is the proposed entry point. It only renders for profiles with Access face recognition management.'):''}
+  ${!can&&S.hintNo?hintNote('This profile has no page access, so the entry icon does not render.'):''}
   </div>`;
 }
 function ccPage(){
@@ -732,6 +734,7 @@ function act(a,d,e,el){
   const f=S.f;
   switch(a){
    case 'noop':return;
+   case 'hint-x':S.hint=false;S.hintNo=false;break;
    case 'bd':if(e.target===el){S.modal=null;render();}return;
    case 'mclose':S.modal=null;S.menu=null;break;
    case 'toast-x':S.toast=null;break;
@@ -805,6 +808,7 @@ app.addEventListener('click',e=>{
   const a=el?el.dataset.act:null;
   const keep=/^(cardmore|panelmore|rowmore|sortopen|gear|tagmore)$/.test(a||'');
   let changed=false;
+  if((S.hint||S.hintNo)&&!e.target.closest('.hintnote')&&a!=='hint-x'){S.hint=false;S.hintNo=false;changed=true;}
   if(!e.target.closest('.menu')&&!keep&&(S.menu||S.sortOpen||S.gearOpen)){S.menu=null;S.sortOpen=false;S.gearOpen=false;changed=true;}
   if(el&&a!=='noop'){
     // sug-person inside name mode uses the active cluster as the source
@@ -955,11 +959,11 @@ function renderDev(){
 }
 $('#dev').addEventListener('click',e=>{
   const s=e.target.closest('[data-scen]');if(s){runScenario(s.dataset.scen);return;}
-  if(e.target.id==='resetAll'){S.profiles=baseProfiles();S.role='admin';S.sim={cap:false,vis:false,slow:false};S.permsClosed={};runScenario('bank');}
+  if(e.target.id==='resetAll'){S.profiles=baseProfiles();S.role='admin';S.hintNo=true;S.sim={cap:false,vis:false,slow:false};S.permsClosed={};runScenario('bank');}
 });
 $('#dev').addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='roleSel'){S.role=t.value;S.f.sel=[];S.f.nm=false;S.menu=null;render();renderDev();}
+  if(t.id==='roleSel'){S.role=t.value;S.hintNo=true;S.f.sel=[];S.f.nm=false;S.menu=null;render();renderDev();}
   else if(t.dataset.sim){S.sim[t.dataset.sim]=t.checked;render();}
   else if(t.id==='dsToggle'){S.ds=t.checked;document.body.classList.toggle('dsl',S.ds);}
 });
