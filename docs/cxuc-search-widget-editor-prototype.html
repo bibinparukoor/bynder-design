@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CXUC Search widget – prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Values read from the Figma file (Search Widget, MVP section). Not yet verified against Foundation tokens. */
+:root{
+  --gray-800:#334E5C; --ink:#1F2A3E; --muted:#5B6678; --line:#D5D7DA; --line-soft:#E8E9EB;
+  --bg-soft:#F3F4F6; --blue:#0F62FE; --white:#fff;
+  --ui:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:var(--ui);color:var(--ink);font-size:14px;background:#fff}
+button{font:inherit;color:inherit;cursor:pointer}
+svg{display:block;fill:currentColor}
+
+/* app shell */
+.topbar{height:80px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;padding:0 24px;gap:24px;position:relative}
+.logo{font-weight:700;font-size:24px;color:var(--blue);letter-spacing:-.5px;margin-left:12px}
+.gsearch{position:absolute;left:50%;transform:translateX(-50%);width:400px;height:40px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;gap:12px;padding:0 12px;color:#8a93a3}
+.avatar{margin-left:auto;width:40px;height:40px;border-radius:50%;background:var(--bg-soft);display:grid;place-items:center;font-weight:600}
+.main{display:flex;height:calc(100% - 80px)}
+.page{flex:1;overflow:auto;position:relative}
+.pagehead{height:88px;display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.btn{height:40px;padding:0 14px;border:1px solid var(--line);background:var(--bg-soft);border-radius:6px;display:inline-flex;align-items:center;gap:8px;font-size:15px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.seg{display:inline-flex;gap:8px}
+
+/* canvas */
+.canvas{padding:0 0 120px}
+.section{position:relative;border-top:2px solid var(--blue);border-bottom:2px solid var(--blue);margin:12px 0;min-height:140px}
+.section .cols{position:relative;margin:0 auto;width:calc(100% - 300px);min-height:136px;padding:12px 10px;border-left:2px solid var(--blue);border-right:2px solid var(--blue)}
+.view .section{border-color:transparent}.view .section .cols{border-color:transparent}
+.addbtn{position:absolute;left:calc(150px - 2px);bottom:-52px;width:56px;height:48px;border:1px solid var(--line);background:#fff;border-radius:6px;display:grid;place-items:center;z-index:5}
+.view .addbtn{display:none}
+.menu{position:absolute;left:150px;top:calc(100% + 4px);width:692px;background:#fff;border:1px solid var(--line-soft);border-radius:6px;box-shadow:0 4px 16px rgba(3,16,40,.14);display:none;grid-template-columns:1fr 1fr 1fr;z-index:20}
+.menu.open{display:grid}
+.menu>div{padding:8px 0;border-right:1px solid var(--line-soft)}.menu>div:last-child{border:0}
+.menu h6{margin:0;padding:10px 16px 6px;font-size:14px;font-weight:600}
+.mi{display:flex;align-items:center;gap:12px;padding:8px 16px;color:var(--muted);cursor:pointer;width:100%;background:none;border:0;text-align:left}
+.mi:hover{background:var(--bg-soft)}
+.mi.dis{opacity:.55;cursor:default}.mi.dis:hover{background:none}
+.hr{height:1px;background:var(--line-soft);margin:8px 0}
+.widgetwrap{position:relative;border:2px solid transparent;border-radius:6px}
+.edit .widgetwrap:hover{border-color:#9ec0ff}
+.edit .widgetwrap.sel{border-color:var(--blue)}
+.placeholder-hint{color:#98a0ae;text-align:center;padding:48px 0}
+
+/* guide content */
+.guide{max-width:660px;margin:48px auto 0;padding:0 8px}
+.guide h2{margin:40px 0 4px;font-size:24px}
+.guide .crumb{color:var(--muted);font-size:13px;margin-bottom:10px}
+.guide p{line-height:1.6;color:#344057}
+.target-flash{animation:flash 1.8s ease-out}
+@keyframes flash{0%,40%{background:#fff3b0}100%{background:transparent}}
+
+/* inspector */
+.inspector{width:336px;border-left:1px solid var(--line-soft);display:none;flex-direction:column;height:100%}
+.edit .inspector{display:flex}
+.tabs{margin:24px;display:flex;background:var(--bg-soft);border-radius:6px;padding:2px}
+.tabs button{flex:1;height:36px;border:0;background:none;border-radius:5px;color:var(--muted)}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.ibody{flex:1;overflow:auto;border-top:1px solid var(--line-soft)}
+.sec{padding:16px 24px;border-bottom:1px solid var(--line-soft)}
+.sechead{display:flex;align-items:center;gap:12px;margin-bottom:12px;cursor:pointer}
+.sechead .ic{width:40px;height:40px;border-radius:6px;background:var(--bg-soft);display:grid;place-items:center}
+.sechead b{font-weight:500;font-size:16px;display:block}.sechead small{color:var(--muted);font-size:13px}
+.sechead .car{margin-left:auto;color:#98a0ae;transition:transform .15s}.sec.closed .car{transform:rotate(180deg)}
+.sec.closed .secbody{display:none}
+.row{margin-bottom:14px}
+.row>label,.lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;align-items:center;height:40px;border:1px solid var(--line);border-radius:6px;padding:0 12px;background:#fff;gap:8px}
+.field input,.field select{border:0;outline:0;background:none;font:inherit;width:100%;color:var(--ink)}
+.field .u{color:#98a0ae}
+.field.soft{background:var(--bg-soft)}
+.tog{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:15px}
+.sw{width:36px;height:22px;border-radius:11px;background:#c9ced6;position:relative;border:0;padding:0;transition:background .15s}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+.sw.on{background:var(--blue)}.sw.on::after{left:16px}
+.color{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.color input[type=color]{width:32px;height:32px;border:1px solid var(--line);border-radius:50%;padding:0;background:none;overflow:hidden;cursor:pointer}
+.color input[type=color]::-webkit-color-swatch-wrapper{padding:0}.color input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+.color span{display:block;font-size:15px;line-height:1.2}.color small{color:var(--muted);font-size:12px}
+.ifoot{height:88px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-around;align-items:center;color:var(--muted)}
+.empty-insp{padding:32px 24px;color:var(--muted);line-height:1.5}
+
+/* ===== THE SEARCH WIDGET (all styled through CSS vars set by the inspector) ===== */
+.sw-root{--in-h:40px;--in-bg:#fff;--in-ff:'Source Sans 3';--in-fw:400;--in-fs:16px;--in-ls:normal;--in-color:#334E5C;
+  --b-r:6px;--b-w:1px;--b-c:#9aa1ad;
+  --r-ff:'Source Sans 3';--r-fw:400;--r-fs:16px;--r-ls:normal;--r-lh:normal;--r-color:#334E5C;--dd-bg:#fff;--hover:#F3F4F6;
+  position:relative;max-width:660px;margin:0 auto}
+.sw-input{height:var(--in-h);background:var(--in-bg);border:var(--b-w) solid var(--b-c);border-radius:var(--b-r);display:flex;align-items:center;gap:12px;padding:0 12px;
+  font-family:var(--in-ff),system-ui,sans-serif;font-weight:var(--in-fw);font-size:var(--in-fs);letter-spacing:var(--in-ls);color:var(--in-color)}
+.sw-input:focus-within{box-shadow:0 0 0 2px #fff,0 0 0 3px #9aa1ad} /* placeholder: Figma shows a soft ring on active input */
+.sw-input input{flex:1;border:0;outline:0;background:none;font:inherit;letter-spacing:inherit;color:inherit;min-width:0}
+.sw-input input::placeholder{color:var(--in-color);opacity:.55}
+.sw-clear{width:20px;height:20px;border-radius:50%;background:#8a93a3;color:#fff;border:0;display:none;place-items:center;padding:0}
+.sw-clear.show{display:grid}
+.sw-dd{position:absolute;left:0;right:0;top:calc(var(--in-h) + 4px);background:var(--dd-bg);border:var(--b-w) solid var(--b-c);border-radius:var(--b-r);
+  box-shadow:0 4px 16px rgba(3,16,40,.10);display:none;z-index:30;max-height:520px;overflow:auto;
+  font-family:var(--r-ff),system-ui,sans-serif;font-weight:var(--r-fw);font-size:var(--r-fs);letter-spacing:var(--r-ls);line-height:var(--r-lh);color:var(--r-color)}
+.sw-dd.open{display:block}
+.sw-h{padding:14px 16px 6px;font-weight:500}
+.sw-item{display:grid;grid-template-columns:40px minmax(0,1.2fr) minmax(0,1fr);gap:12px;align-items:center;padding:8px 16px;cursor:pointer;border:0;background:none;width:100%;text-align:left;font:inherit;letter-spacing:inherit;line-height:inherit;color:inherit}
+.sw-item.act,.sw-item:hover{background:var(--hover)}
+.sw-ico{width:40px;height:40px;border-radius:6px;background:var(--bg-soft);display:grid;place-items:center;color:var(--ink)}
+.sw-item.act .sw-ico,.sw-item:hover .sw-ico{background:rgba(0,0,0,.05)}
+.sw-t b{font-weight:700}
+.sw-sub{font-size:calc(var(--r-fs) - 2px);opacity:.78;display:block}
+.sw-crumb{font-size:var(--r-fs)}
+.sw-recent{display:flex;gap:12px;align-items:center;padding:8px 16px;cursor:pointer;border:0;background:none;width:100%;font:inherit;color:inherit;text-align:left}
+.sw-recent:hover,.sw-recent.act{background:var(--hover)}
+.sw-state{padding:28px 16px;text-align:center}
+.sw-state h4{margin:0 0 12px;font-size:calc(var(--r-fs) * 1.25);font-weight:600}
+.sw-state p{margin:0;font-size:calc(var(--r-fs) - 2px);opacity:.78}
+.sw-skel{display:grid;grid-template-columns:40px 1fr;gap:12px;padding:8px 16px;align-items:center}
+.sw-skel i{display:block;background:linear-gradient(90deg,#eceef1 25%,#f6f7f9 50%,#eceef1 75%);background-size:200% 100%;animation:sh 1.2s infinite;border-radius:4px}
+.sw-skel i.sq{width:40px;height:40px;border-radius:6px}.sw-skel i.ln{height:12px;margin:4px 0}
+@keyframes sh{to{background-position:-200% 0}}
+.sw-keys{border-top:1px solid var(--line-soft);padding:8px 16px;display:flex;gap:16px;justify-content:flex-end;font-size:12px;color:var(--muted)}
+kbd{border:1px solid var(--line);border-radius:4px;padding:1px 5px;background:#fff;font:inherit}
+.scope{display:flex;gap:8px;margin:0 0 8px;font-size:13px;color:var(--muted);align-items:center}
+.scope select{border:1px solid var(--line);border-radius:6px;height:28px;padding:0 6px;font:inherit}
+@media (max-width:760px){.sw-item{grid-template-columns:40px 1fr}.sw-crumb{grid-column:2}}
+</style>
+</head>
+<body class="edit">
+<div class="topbar">
+  <svg width="28" height="28" viewBox="0 0 24 24" style="color:var(--blue)"><path d="M3 12l4-4 4 4 6-8 4 4-10 12z"/></svg><span class="logo" style="margin-left:-12px">bynder</span>
+  <div class="gsearch"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>Search</div>
+  <div class="avatar">B</div>
+</div>
+<div class="main">
+  <div class="page" id="page">
+    <div class="pagehead">
+      <button class="btn" title="Back">‹</button>
+      <div class="seg">
+        <button class="btn" id="modeEdit">Edit mode</button>
+        <button class="btn primary" id="modeView">Preview as viewer</button>
+      </div>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="section" id="section">
+        <div class="cols" id="cols">
+          <div class="placeholder-hint" id="hint">Empty section. Use the + button below to add a widget.</div>
+        </div>
+        <button class="addbtn" id="addBtn" title="Add widget"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg></button>
+        <div class="menu" id="menu">
+          <div>
+            <button class="mi dis">▭ Blank section</button><button class="mi dis">▣ Section templates</button><div class="hr"></div>
+            <h6>Media</h6><button class="mi dis">Image</button><button class="mi dis">Video</button><button class="mi dis">Audio</button><button class="mi dis">Collection</button>
+          </div>
+          <div>
+            <h6>Formatting</h6><button class="mi dis">Text</button><button class="mi dis">Button</button><button class="mi dis">Card</button><button class="mi dis">Spacing divider</button><div class="hr"></div>
+            <h6>Colors</h6><button class="mi dis">Color palette</button>
+          </div>
+          <div>
+            <h6>Embed</h6><button class="mi dis">Youtube</button><button class="mi dis">Vimeo</button><button class="mi dis">Figma</button><div class="hr"></div>
+            <h6>Others</h6>
+            <button class="mi" id="addSearch" style="background:var(--bg-soft);color:var(--ink)"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>Search</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide" id="guide"></div>
+    </div>
+  </div>
+
+  <aside class="inspector" id="inspector">
+    <div class="tabs"><button class="on">Widget</button><button>Section</button></div>
+    <div class="ibody" id="ibody"><div class="empty-insp">Select a widget on the canvas to style it. Add one from the + menu (Others → Search).</div></div>
+    <div class="ifoot"><button class="btn" id="dupBtn" style="border:0;background:none">⧉</button><button class="btn" id="delBtn" style="border:0;background:none" title="Delete widget">🗑</button></div>
+  </aside>
+</div>
+
+<script>
+/* ---------- sample content the search runs against ---------- */
+const CONTENT=[
+ {type:'Text',   title:'Text',    text:'Our brand cards use a consistent grid and generous white space.',chapter:'Brand basics',page:'Layout'},
+ {type:'Page',   title:'Page name',text:'Cards',chapter:'Components',page:'Cards'},
+ {type:'Chapter',title:'Chapter name',text:'Cards and tiles',chapter:'Cards and tiles',page:null},
+ {type:'Card',   title:'Card text',text:'Use cards to group related content such as news and quick links.',chapter:'Components',page:'Cards'},
+ {type:'Color',  title:'Color text',text:'Card backgrounds use Gray 50 so content stands out on white.',chapter:'Colours',page:'Surfaces'},
+ {type:'Text',   title:'Text',    text:'Logo clear space equals the height of the B in bynder.',chapter:'Logo',page:'Clear space'},
+ {type:'Page',   title:'Page name',text:'Typography',chapter:'Brand basics',page:'Typography'},
+ {type:'Text',   title:'Text',    text:'Headlines use Source Sans 3 in semibold at 24px.',chapter:'Brand basics',page:'Typography'},
+ {type:'Color',  title:'Color text',text:'Primary blue is used for links and primary actions.',chapter:'Colours',page:'Primary'},
+ {type:'Chapter',title:'Chapter name',text:'Logo',chapter:'Logo',page:null},
+ {type:'Card',   title:'Card text',text:'Download the logo pack from the asset library.',chapter:'Logo',page:'Downloads'},
+];
+const ICONS={
+ Text:'<path d="M3 5h18v2H3zm0 4h18v2H3zm0 4h12v2H3z"/>',
+ Page:'<path d="M6 2h8l6 6v14H6z"/>',
+ Chapter:'<path d="M8 2h8l5 5v11H8zM4 6h2v14h10v2H4z"/>',
+ Card:'<path d="M4 4h16v8H4zm0 10h10v2H4zm0 4h8v2H4z"/>',
+ Color:'<path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 22 11c0-5-4.5-9-10-9z"/>'
+};
+const svg=(p,s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24">${p}</svg>`;
+const SEARCH_ICON=svg('<path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/>');
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rx=q=>new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+
+/* guide body (so "scroll to result" has something to land on) */
+const guide=document.getElementById('guide');
+{
+ const seen=new Set();
+ CONTENT.forEach((c,i)=>{
+   const k=c.chapter+'/'+c.page; if(seen.has(k)) return; seen.add(k);
+   const h=document.createElement('div');h.id='t-'+i;
+   h.innerHTML=`<h2>${esc(c.page||c.chapter)}</h2><div class="crumb">${esc(c.chapter)}${c.page?' / '+esc(c.page):''}</div>`+
+     CONTENT.filter(x=>x.chapter===c.chapter&&x.page===c.page).map((x,j)=>`<p id="p-${CONTENT.indexOf(x)}">${esc(x.text)}</p>`).join('');
+   guide.appendChild(h);
+ });
+}
+
+/* ---------- widget state ---------- */
+const S={
+ scope:'unit',
+ icon:true, phOn:true, ph:'Search guide…',
+ inFF:'Source Sans 3', inFW:'400', inFS:16, inLS:0, inColor:'#334E5C', height:40, bg:'#ffffff',
+ radius:6, weight:1, bcolor:'#9aa1ad',
+ rFF:'Source Sans 3', rFW:'400', rFS:16, rLS:0, rLH:0, rColor:'#334E5C', ddBg:'#ffffff', hover:'#f3f4f6'
+};
+let recent=['Brand colours','Logo clear space','Typography'];
+let widgetEl=null, selected=false;
+
+/* ---------- widget (the actual component) ---------- */
+function buildWidget(){
+ const w=document.createElement('div');w.className='widgetwrap';
+ w.innerHTML=`<div class="sw-root" id="swRoot">
+  <div class="sw-input">
+    <span id="swIco">${SEARCH_ICON}</span>
+    <input id="swIn" type="text" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="swDd">
+    <button class="sw-clear" id="swClr" aria-label="Clear">${svg('<path d="M18 7l-1-1-5 5-5-5-1 1 5 5-5 5 1 1 5-5 5 5 1-1-5-5z"/>',14)}</button>
+  </div>
+  <div class="sw-dd" id="swDd" role="listbox"></div></div>`;
+ return w;
+}
+let act=-1, rows=[], tmr=null;
+function wire(){
+ const inp=q('#swIn'),dd=q('#swDd'),clr=q('#swClr');
+ function open(){dd.classList.add('open');inp.setAttribute('aria-expanded','true')}
+ function close(){dd.classList.remove('open');inp.setAttribute('aria-expanded','false');act=-1}
+ function setAct(i){
+   const els=[...dd.querySelectorAll('[data-row]')]; if(!els.length)return;
+   act=(i+els.length)%els.length; els.forEach((e,k)=>e.classList.toggle('act',k===act)); els[act].scrollIntoView({block:'nearest'});
+ }
+ function render(){
+   const v=inp.value.trim(); clr.classList.toggle('show',!!inp.value);
+   clearTimeout(tmr); act=-1;
+   if(!v){
+     dd.innerHTML = recent.length
+      ? `<div class="sw-h">Recent searches</div>`+recent.map((r,i)=>`<button class="sw-recent" data-row data-r="${i}">${SEARCH_ICON}<span>${esc(r)}</span></button>`).join('')
+      : `<div class="sw-h">No recent searches</div>`;
+     dd.insertAdjacentHTML('beforeend',keys());open();return;
+   }
+   // loading state first (Figma "Loading state"), then results
+   dd.innerHTML=`<div class="sw-h">Searching…</div>`+Array(4).fill(`<div class="sw-skel"><i class="sq"></i><div><i class="ln" style="width:60%"></i><i class="ln" style="width:30%"></i></div></div>`).join('');open();
+   tmr=setTimeout(()=>{
+     const re=rx(v);
+     rows=CONTENT.map((c,i)=>({c,i})).filter(({c})=>S.scope==='unit'?true:c.chapter==='Components'||c.chapter==='Cards and tiles')
+          .filter(({c})=>re.test(c.text)||(re.lastIndex=0,re.test(c.page||''))||(re.lastIndex=0,re.test(c.chapter)));
+     re.lastIndex=0;
+     if(!rows.length){
+       dd.innerHTML=`<div class="sw-state"><h4>No matches in this content unit.</h4><p>Try a different word or phrase.</p></div>`;return;
+     }
+     dd.innerHTML=`<div class="sw-h">${rows.length} Result${rows.length>1?'s':''}</div>`+rows.map(({c,i},k)=>{
+        const field = c.type==='Page'?c.page : c.type==='Chapter'?c.chapter : c.text;
+        const snip=esc(field).replace(rx(esc(v)),'<b>$1</b>');
+        return `<button class="sw-item" data-row data-i="${i}" role="option"><span class="sw-ico">${svg(ICONS[c.type])}</span>
+          <span class="sw-t">${c.type} contains <b>${esc(v.toLowerCase())}</b><span class="sw-sub">${c.type}</span></span>
+          <span class="sw-crumb">${esc(c.chapter)}${c.page?' / '+esc(c.page):''}</span></button>`}).join('')+keys();
+   },450);
+ }
+ const keys=()=>`<div class="sw-keys"><span><kbd>↑</kbd> <kbd>↓</kbd> navigate</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div>`;
+ function go(el){
+   if(!el)return;
+   if(el.dataset.r!==undefined){inp.value=recent[+el.dataset.r];render();return}
+   const i=+el.dataset.i, v=inp.value.trim();
+   if(v){recent=[v,...recent.filter(r=>r.toLowerCase()!==v.toLowerCase())].slice(0,5)}
+   close();
+   if(document.body.classList.contains('view')){
+     const t=document.getElementById('p-'+i)||document.getElementById('t-'+i);
+     if(t){t.scrollIntoView({behavior:'smooth',block:'center'});t.classList.remove('target-flash');void t.offsetWidth;t.classList.add('target-flash')}
+   }
+ }
+ inp.addEventListener('focus',render);
+ inp.addEventListener('input',render);
+ inp.addEventListener('keydown',e=>{
+   if(e.key==='ArrowDown'){e.preventDefault();setAct(act+1)}
+   else if(e.key==='ArrowUp'){e.preventDefault();setAct(act-1)}
+   else if(e.key==='Enter'){const els=dd.querySelectorAll('[data-row]');go(els[act>=0?act:0])}
+   else if(e.key==='Escape'){close();inp.blur()}
+ });
+ dd.addEventListener('mousedown',e=>{const b=e.target.closest('[data-row]');if(b){e.preventDefault();go(b)}});
+ clr.addEventListener('mousedown',e=>{e.preventDefault();inp.value='';render();inp.focus()});
+ document.addEventListener('mousedown',e=>{if(widgetEl&&!widgetEl.contains(e.target))close()});
+}
+const q=s=>widgetEl.querySelector(s);
+
+/* ---------- apply inspector values to the widget ---------- */
+function apply(){
+ if(!widgetEl)return;
+ const r=q('#swRoot').style, px=n=>n+'px';
+ r.setProperty('--in-h',px(S.height));r.setProperty('--in-bg',S.bg);r.setProperty('--in-ff',`'${S.inFF}'`);r.setProperty('--in-fw',S.inFW);
+ r.setProperty('--in-fs',px(S.inFS));r.setProperty('--in-ls',S.inLS?px(S.inLS):'normal');r.setProperty('--in-color',S.inColor);
+ r.setProperty('--b-r',px(S.radius));r.setProperty('--b-w',px(S.weight));r.setProperty('--b-c',S.bcolor);
+ r.setProperty('--r-ff',`'${S.rFF}'`);r.setProperty('--r-fw',S.rFW);r.setProperty('--r-fs',px(S.rFS));
+ r.setProperty('--r-ls',S.rLS?px(S.rLS):'normal');r.setProperty('--r-lh',S.rLH?S.rLH+'':'normal');r.setProperty('--r-color',S.rColor);
+ r.setProperty('--dd-bg',S.ddBg);r.setProperty('--hover',S.hover);
+ q('#swIco').style.display=S.icon?'block':'none';
+ q('#swIn').placeholder=S.phOn?S.ph:'';
+}
+
+/* ---------- inspector ---------- */
+const FONTS=['Source Sans 3','Inter','Merriweather','Georgia','Arial'];
+const WEIGHTS=[['400','Regular'],['500','Medium'],['600','Semibold'],['700','Bold']];
+function inspector(){
+ const el=document.getElementById('ibody');
+ if(!selected){el.innerHTML='<div class="empty-insp">Select a widget on the canvas to style it. Add one from the + menu (Others → Search).</div>';return}
+ const sel=(key,opts)=>`<div class="field soft"><select data-k="${key}">${opts.map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return`<option value="${v}"${String(S[key])===v?' selected':''}>${l}</option>`}).join('')}</select></div>`;
+ const num=(key,u='px',ph='')=>`<div class="field"><input type="number" data-k="${key}" value="${S[key]||''}" placeholder="${ph}"><span class="u">${u}</span></div>`;
+ const col=(key,label)=>`<div class="color"><input type="color" data-k="${key}" value="${S[key]}"><div><span>${label}</span><small>${S[key].toUpperCase()}</small></div></div>`;
+ const tog=(key,label)=>`<div class="tog"><span>${label}</span><button class="sw${S[key]?' on':''}" data-t="${key}" aria-pressed="${S[key]}"></button></div>`;
+ const sec=(id,ic,title,sub,body)=>`<div class="sec" data-sec="${id}"><div class="sechead"><span class="ic">${svg(ic)}</span><div><b>${title}</b>${sub?`<small>${sub}</small>`:''}</div><span class="car">${svg('<path d="M7 14l5-5 5 5z"/>')}</span></div><div class="secbody">${body}</div></div>`;
+ el.innerHTML=
+  sec('in','<path d="M3 5h18v2H3zm0 4h18v2H3zm0 4h18v2H3z"/>','Input','',
+   `<div class="row"><label>Height</label>${num('height')}</div>${col('bg','Background color')}
+    ${tog('icon','Icon')}${tog('phOn','Placeholder copy')}
+    ${S.phOn?`<div class="row"><div class="field"><input type="text" data-k="ph" value="${esc(S.ph)}"></div></div>`:''}
+    <div class="row"><label>Font Family</label>${sel('inFF',FONTS)}</div>
+    <div class="row two"><div><label>Font Style</label>${sel('inFW',WEIGHTS)}</div><div><label>Font Size</label>${num('inFS')}</div></div>
+    <div class="row"><label>Letter Spacing</label>${num('inLS','px','Normal')}</div>${col('inColor','Color')}`)+
+  sec('rs','<path d="M5 4h14v3h-5.5v13h-3V7H5z"/>','Search results','',
+   `<div class="row"><label>Font Family</label>${sel('rFF',FONTS)}</div>
+    <div class="row two"><div><label>Font Style</label>${sel('rFW',WEIGHTS)}</div><div><label>Font Size</label>${num('rFS')}</div></div>
+    <div class="row two"><div><label>Letter Spacing</label>${num('rLS','px','Normal')}</div><div><label>Line Height</label>${num('rLH','×','Normal')}</div></div>
+    ${col('rColor','Color')}${col('ddBg','Dropdown color')}${col('hover','Result item hover')}
+    <div class="lbl" style="margin-top:-4px">Secondary text (type label) is always font size − 2px.</div>`)+
+  sec('bd','<path d="M5 5h4v2H7v2H5zm10 0h4v4h-2V7h-2zM5 15h2v2h2v2H5zm12 0h2v4h-4v-2h2z"/>','Border','Applies to dropdown too',
+   `<div class="row two"><div><label>Radius</label>${num('radius')}</div><div><label>Weight</label>${num('weight')}</div></div>${col('bcolor','Color')}`);
+ el.querySelectorAll('.sechead').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('closed'));
+ el.querySelectorAll('[data-k]').forEach(i=>{
+   const h=()=>{const k=i.dataset.k;let v=i.value;if(i.type==='number')v=v===''?0:+v;S[k]=v;apply();if(i.type==='color')i.parentElement.querySelector('small').textContent=v.toUpperCase()};
+   i.addEventListener('input',h);i.addEventListener('change',h);
+ });
+ el.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S[b.dataset.t]=!S[b.dataset.t];apply();const sc=el.scrollTop;inspector();el.scrollTop=sc});
+}
+
+/* ---------- editor wiring ---------- */
+const menu=document.getElementById('menu');
+document.getElementById('addBtn').onclick=e=>{e.stopPropagation();menu.classList.toggle('open')};
+document.addEventListener('click',e=>{if(!menu.contains(e.target))menu.classList.remove('open')});
+document.getElementById('addSearch').onclick=()=>{
+ menu.classList.remove('open');if(widgetEl)return;
+ document.getElementById('hint').remove();
+ widgetEl=buildWidget();document.getElementById('cols').appendChild(widgetEl);wire();apply();select(true);
+};
+function select(v){selected=v;widgetEl&&widgetEl.classList.toggle('sel',v);inspector()}
+document.getElementById('cols').addEventListener('click',e=>{if(widgetEl&&widgetEl.contains(e.target)&&document.body.classList.contains('edit'))select(true)});
+document.getElementById('page').addEventListener('click',e=>{if(widgetEl&&!widgetEl.contains(e.target)&&!e.target.closest('.menu,.addbtn')&&document.body.classList.contains('edit'))select(false)});
+document.getElementById('delBtn').onclick=()=>{if(widgetEl){widgetEl.remove();widgetEl=null;selected=false;document.getElementById('cols').innerHTML='<div class="placeholder-hint" id="hint">Empty section. Use the + button below to add a widget.</div>';inspector()}};
+const setMode=m=>{document.body.className=m;if(m==='view'&&widgetEl){widgetEl.classList.remove('sel')}if(m==='edit'&&widgetEl&&selected)widgetEl.classList.add('sel')};
+document.getElementById('modeEdit').onclick=()=>setMode('edit');
+document.getElementById('modeView').onclick=()=>setMode('view');
+</script>
+</body>
+</html>
