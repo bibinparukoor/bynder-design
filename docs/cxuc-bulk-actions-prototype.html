@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CXUC · Bulk actions and bulk sharing prototype</title>
+<style>
+/* Tokens read from the Figma frames (CXUC Refinement Stories). Hover states of primary/secondary were not in the frames and are derived. */
+:root{
+  --primary:#126dfe; --primary-pressed:#093986; --primary-hover:#0d5fe0; --primary-disabled:rgba(18,109,254,.4);
+  --text:rgba(3,16,38,.88); --text-2:rgba(3,16,38,.70); --text-3:rgba(3,16,38,.46);
+  --text-dark:#212c40; --text-sub:#4f5867;
+  --border:rgba(3,16,38,.17); --line:rgba(3,16,38,.10); --hover:rgba(3,16,38,.05);
+  --btn-fill:rgba(3,16,38,.03); --btn-hover:rgba(3,16,38,.07); --chip:rgba(3,16,38,.05); --badge:rgba(3,16,38,.07);
+  --ok-bg:#e3f2e7; --ok-text:#0e6765; --toast-ok:#35a284; --thumb:#d5d7da; --card:#f8f8f9; --danger:#c62828;
+  --overlay:rgba(3,16,38,.20);
+  --shadow-modal:0 8px 12px rgba(3,16,38,.10),0 0 1px rgba(3,16,38,.10);
+  --shadow-toast:0 2px 8px rgba(3,16,38,.15),0 0 0 rgba(3,16,38,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:Inter,"Inter Variable",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:20px;color:var(--text);background:#fff;min-width:1100px;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{display:block;fill:currentColor}
+.ico{width:24px;height:24px;flex:none}
+.ico.s{width:20px;height:20px}
+/* Buttons (DS Button: 40h, r6, pad 0/12, gap 4) */
+.btn{display:inline-flex;align-items:center;gap:4px;height:40px;padding:0 12px;border-radius:6px;white-space:nowrap;color:var(--text);position:relative}
+.btn .lbl{padding:0 4px}
+.btn:hover{background:var(--hover)}
+.btn.sec{background:var(--btn-fill);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.sec:hover{background:var(--btn-hover)}
+.btn.pri{background:var(--primary);color:#fff}
+.btn.pri:hover{background:var(--primary-hover)}
+.btn.pri:active{background:var(--primary-pressed)}
+.btn.pri[disabled]{background:var(--primary-disabled);cursor:not-allowed}
+.btn.icon{width:48px;justify-content:center;padding:0}
+.btn.sm{height:32px;padding:0 8px}
+.btn.on{background:var(--hover)}
+.btn[disabled]{cursor:not-allowed}
+.btn.sec[disabled]{opacity:.5}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+[data-tip]{position:relative}
+[data-tip]:hover::after,[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#031026;color:#fff;font-size:14px;line-height:20px;padding:6px 12px;border-radius:6px;white-space:nowrap;z-index:300;pointer-events:none}
+/* Header */
+.top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:relative}
+.search{display:flex;align-items:center;gap:8px;height:40px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-3)}
+.search input{border:0;outline:0;flex:1;font:inherit;color:var(--text);background:none;min-width:0}
+.search input::placeholder{color:var(--text-3)}
+.top .search{position:absolute;left:50%;transform:translateX(-50%);width:400px}
+.top .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--hover);display:grid;place-items:center;font-weight:600}
+.nav{height:56px;display:flex;align-items:center;gap:12px;padding:8px 16px 8px 0;border-bottom:1px solid var(--line)}
+.logo{width:159px;padding:0 24px;display:flex;align-items:center;gap:6px;color:var(--primary);font-weight:700;font-size:22px;letter-spacing:-.5px}
+.nav .links{display:flex;flex:1}
+/* Layout */
+.layout{display:flex;height:calc(100vh - 120px)}
+.sidebar{width:272px;flex:none;padding:12px 0;border-right:1px solid var(--line);overflow:auto}
+.sb-sec{padding:0 16px;display:flex;flex-direction:column;gap:2px}
+.sb-item{display:flex;align-items:center;gap:8px;height:40px;padding:2px 12px;border-radius:6px;color:var(--text)}
+.sb-item.act{background:var(--hover)}
+.sb-item .n{margin-left:auto;font-size:14px;color:var(--text-2)}
+.sb-item .ico{color:var(--text-sub)}
+.sb-div{height:1px;background:var(--line);margin:8px 0}
+.main{flex:1;overflow:auto;position:relative}
+.phead{height:88px;padding:24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.phead .title{font-weight:700;font-size:16px;white-space:nowrap}
+.phead .title.sel{font-weight:400}
+.actions{display:flex;gap:12px}
+.tool{height:64px;padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.tool .search{width:334px}
+.tool .r{display:flex;gap:4px;align-items:center}
+.vdiv{width:1px;height:40px;background:rgba(0,34,51,.05);margin:0 4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,256px);gap:20px 24px;padding:10px 24px 40px}
+/* Cards (DS Card: 256x220, thumb 160, r6) */
+.card{width:256px;height:220px;position:relative;cursor:pointer}
+.thumb{position:relative;height:160px;border-radius:6px;background:var(--thumb);box-shadow:inset 0 0 0 1px var(--line)}
+.card.sel .thumb::before{content:"";position:absolute;inset:-2px;border:2px solid var(--primary);border-radius:8px;pointer-events:none}
+.selbtn{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 1px var(--border);display:grid;place-items:center;color:#fff;opacity:0;transition:opacity .1s}
+.card:hover .selbtn,.card.sel .selbtn,.anysel .selbtn{opacity:1}
+.card.sel .selbtn{background:var(--primary);box-shadow:none}
+.selbtn .ico{width:20px;height:20px}
+.card:not(.sel) .selbtn .ico{display:none}
+.card:not(.sel) .selbtn:hover{background:var(--hover)}
+.cinfo{padding:8px 0}
+.ctitle{color:var(--text-dark);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.csub{color:var(--text-sub);font-size:14px}
+.ctype{position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.9);color:var(--text-2);font-size:12px;line-height:16px;padding:2px 6px;border-radius:5px}
+/* Popover menu (DS Dropdown) */
+.menu{position:fixed;z-index:250;background:#fff;border-radius:8px;box-shadow:var(--shadow-modal);padding:8px;min-width:200px}
+.menu button{display:flex;align-items:center;gap:8px;width:100%;height:40px;padding:0 12px;border-radius:6px;text-align:left;color:var(--text-dark)}
+.menu button:hover:not([disabled]){background:var(--hover)}
+.menu button[disabled]{color:var(--text-3);cursor:not-allowed}
+.menu .chk{margin-left:auto;color:var(--primary)}
+/* Modal / dialog (DS Modal: r12, header 72, footer 88) */
+.scrim{position:fixed;inset:0;background:var(--overlay);z-index:100;display:grid;place-items:center}
+.dlg{width:520px;background:#fff;border-radius:12px;box-shadow:var(--shadow-modal);display:flex;flex-direction:column}
+.mhead{min-height:72px;padding:16px 24px;display:flex;align-items:center;gap:12px}
+.mhead .ttl{flex:1;font-size:16px;color:var(--text-dark)}
+.mhead .thumbi{width:40px;height:40px;border-radius:8px;background:var(--hover);display:grid;place-items:center}
+.mbody{padding:16px 24px}
+.mbody p{margin:0;padding:8px 0;font-size:14px;line-height:21px;color:var(--text-dark)}
+.mfoot{height:88px;padding:24px;display:flex;align-items:center;gap:12px}
+.mfoot .sp{flex:1}
+.fld label{display:block;font-size:14px;margin-bottom:8px;color:var(--text-dark)}
+.select{width:100%;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-3);text-align:left}
+.select.has{color:var(--text)}
+.big{width:min(1232px,calc(100vw - 48px));height:min(874px,calc(100vh - 44px));background:#fff;border-radius:12px;box-shadow:var(--shadow-modal);display:flex;flex-direction:column;overflow:hidden}
+.big .mbody{flex:1;overflow:auto;padding:16px 24px}
+/* Table */
+.thead,.tr{display:grid;align-items:start}
+.thead{height:40px;align-items:center;color:var(--text-dark);position:sticky;top:-16px;background:#fff;z-index:2;margin-top:-4px}
+.thead span{padding:0 16px}
+.thead .b{font-weight:600}
+.cols-view{grid-template-columns:minmax(300px,1.05fr) 140px minmax(300px,1.4fr) 170px}
+.cols-edit{grid-template-columns:minmax(300px,1.05fr) 150px minmax(300px,1.4fr) 170px 84px}
+.cols-choose{grid-template-columns:minmax(360px,1fr) 200px}
+.tr{border-bottom:1px solid var(--line);padding:4px 0;min-height:56px;position:relative}
+.tr:last-child{border-bottom:0}
+.tr>div{padding:4px 16px;min-height:48px;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.tr.chg::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--primary)}
+.main-c{gap:12px!important;flex-wrap:nowrap!important}
+.chev{width:24px;height:24px;display:grid;place-items:center;border-radius:4px;flex:none;color:var(--text)}
+.chev:hover{background:var(--hover)}
+.chev.none{visibility:hidden}
+.mthumb{width:40px;height:40px;border-radius:8px;background:var(--hover);display:grid;place-items:center;flex:none;color:var(--text)}
+.mt{display:flex;flex-direction:column;min-width:0}
+.mt .nm{color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt .sb{font-size:14px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inh{align-self:flex-start;margin-top:6px;font-size:12px;line-height:16px;padding:4px 8px;border-radius:5px;background:var(--badge);color:var(--text-2);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:9999px;background:var(--chip);font-size:14px;color:var(--text-dark);white-space:nowrap}
+.pill .ico{width:20px;height:20px}
+button.pill:hover{background:var(--btn-hover)}
+.pill.more{padding:0 12px}
+.pill.round{padding:0;width:32px;justify-content:center;background:#fff;box-shadow:inset 0 0 0 1px var(--border)}
+.pill.ok{background:var(--ok-bg);color:var(--ok-text);height:32px}
+.pill.off{background:var(--chip);color:var(--text-dark)}
+.pcount{font-size:14px;color:var(--text-dark);margin-left:auto}
+.c-pub{justify-content:flex-end}
+/* Checkbox + toggle */
+.cb{width:16px;height:16px;border-radius:4px;box-shadow:inset 0 0 0 2px rgba(3,16,38,.28);display:grid;place-items:center;color:#fff;flex:none;background:#fff}
+.cb.on,.cb.ind{background:var(--primary);box-shadow:none}
+.cb.dis{background:rgba(3,16,38,.07);box-shadow:none;cursor:not-allowed}
+.cb .ico{width:14px;height:14px}
+.cb:not(.on) .ico.ck,.cb:not(.ind) .ico.im{display:none}
+.tgl{width:40px;height:24px;border-radius:12px;background:var(--border);position:relative;flex:none;transition:background .12s}
+.tgl::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .12s}
+.tgl.on{background:var(--primary)}
+.tgl.on::after{left:18px}
+/* Edit mode sharing */
+.shr{display:flex;flex-direction:column;gap:8px;width:100%}
+.shr .inp{height:40px}
+.inp{display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:8px 12px;background:#fff}
+.inp input{border:0;outline:0;font:inherit;width:100%;background:none}
+.inp input::placeholder{color:var(--text-3)}
+.inp:focus-within{box-shadow:0 0 0 2px var(--primary)}
+.gr{display:flex;justify-content:space-between;align-items:center}
+.gr .pill{padding:0 12px}
+.gr .x{margin-left:4px;color:var(--text-3);width:18px;height:18px;display:grid;place-items:center;border-radius:50%}
+.gr .x:hover{background:var(--btn-hover);color:var(--text)}
+.rolebtn{width:96px;justify-content:space-between}
+.rolebtn[disabled]{color:var(--text-3)}
+.err{grid-column:1/-1;margin:0 16px 4px;padding:8px 12px;border-radius:6px;background:#fdecea;color:#8a1c1c;font-size:14px;display:flex;gap:8px;align-items:center}
+.tr>div.ra{padding:4px 8px 4px 0;flex-wrap:nowrap}
+.rowact{display:flex;gap:4px;flex-wrap:nowrap}
+.rowact button{width:32px;height:32px;border-radius:6px;display:grid;place-items:center}
+.rowact button:hover:not([disabled]){background:var(--hover)}
+.rowact button[disabled]{opacity:.35;cursor:not-allowed}
+.rowact button.src{background:rgba(18,109,254,.12);color:var(--primary)}
+/* Toast (DS Notification) */
+#toasts{position:fixed;left:24px;bottom:24px;z-index:400;display:flex;flex-direction:column;gap:8px}
+.toast{width:480px;max-width:calc(100vw - 48px);background:#fff;border-radius:8px;box-shadow:var(--shadow-toast);display:flex;align-items:center;gap:16px;padding:16px;animation:in .18s ease-out}
+.toast .ok{width:40px;height:40px;border-radius:50%;background:var(--toast-ok);display:grid;place-items:center;color:#fff;flex:none}
+.toast .t{flex:1;color:var(--text-dark)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hint{position:fixed;right:16px;bottom:12px;z-index:50;font-size:12px;line-height:16px;color:var(--text-3);background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 10px;max-width:340px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="layer"></div>
+<div id="toasts" aria-live="polite"></div>
+<script>
+/* ---------- icons (stand-ins for the Bynder icon set) ---------- */
+const P={
+ search:'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+ close:'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+ check:'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+ minus:'M19 13H5v-2h14v2z',
+ caret:'M7 10l5 5 5-5z',
+ right:'M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z',
+ down:'M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z',
+ globe:'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z',
+ lock:'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+ person:'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+ pencil:'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+ eye:'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z',
+ building:'M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z',
+ trash:'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+ copy:'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z',
+ paste:'M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z',
+ personadd:'M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+ unpub:'M19.35 10.04C18.67 6.59 15.64 4 12 4c-1.48 0-2.85.43-4.01 1.17l1.46 1.46C10.21 6.23 11.08 6 12 6c3.04 0 5.5 2.46 5.5 5.5v.5H19c1.66 0 3 1.34 3 3 0 1.13-.64 2.11-1.56 2.62l1.45 1.45C23.16 18.16 24 16.68 24 15c0-2.64-2.05-4.78-4.65-4.96zM3 5.27l2.75 2.74C2.56 8.15 0 10.77 0 14c0 3.31 2.69 6 6 6h11.73l2 2L21 20.73 4.27 4 3 5.27zM7.73 10l8 8H6c-2.21 0-4-1.79-4-4s1.79-4 4-4h1.73z',
+ pub:'M5 4v2h14V4H5zm0 10h4v6h6v-6h4l-7-7-7 7z',
+ move:'M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-8 12v-3H8v-4h4V8l5 5-5 5z',
+ add:'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+ folder:'M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',
+ folderopen:'M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z',
+ bell:'M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z',
+ gear:'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+ warn:'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+ sort:'M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z',
+ grid:'M3 3v8h8V3H3zm6 6H5V5h4v4zm-6 4v8h8v-8H3zm6 6H5v-4h4v4zm4-16v8h8V3h-8zm6 6h-4V5h4v4zm-6 4v8h8v-8h-8zm6 6h-4v-4h4v4z',
+ list:'M3 14h4v-4H3v4zm0 5h4v-4H3v4zM3 9h4V5H3v4zm5 5h13v-4H8v4zm0 5h13v-4H8v4zM8 5v4h13V5H8z',
+ home:'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+ guide:'M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z',
+ lpage:'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+ dash:'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+ cols:'M10 18h5V5h-5v13zm-6 0h5V5H4v13zM16 5v13h5V5h-5z',
+ link:'M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z',
+ chapter:'M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z',
+ spark:'M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z'
+};
+const ic=(n,c='')=>`<svg class="ico ${c}" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"/></svg>`;
+const icp=(n)=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"/></svg>`;
+
+/* ---------- data ---------- */
+let uid=0; const nid=()=>'n'+(++uid);
+const GROUP_MEMBERS={'Design Team':['Priya Nair','Sam Okafor','Jordan Lee'],'Marketing EMEA':['Morgan Blake','Sam Okafor'],'Sales team':['Omar Haddad','Ana Costa']};
+const PEOPLE=['Priya Nair','Sam Okafor','Jordan Lee','Morgan Blake','Lena Fischer','Omar Haddad','Ana Costa'];
+const GROUP_NAMES=['Partner brands','Seasonal campaigns','Internal enablement'];
+const sh=(name,role)=>({name,role});
+const pg=(name,vis,share,pub)=>({id:nid(),kind:'page',name,vis,share,pub,children:[]});
+const ch=(name,vis,share,pages)=>({id:nid(),kind:'chapter',name,vis,share,children:pages});
+const gd=(name,o)=>({id:nid(),kind:'guide',name,vis:o.vis,share:o.share,group:o.group||null,inherits:!!o.inherits,children:o.chapters||[]});
+const lp=(name,o)=>({id:nid(),kind:'lp',name,vis:o.vis,share:o.share,group:o.group||null,pub:o.pub,children:[]});
+const owner=sh('Priya Nair','Owner');
+function seed(){
+  return [
+   gd('Brand Guidelines 2026',{vis:'Public',group:'Partner brands',inherits:true,
+     share:[owner,sh('Sam Okafor','Viewer'),sh('Jordan Lee','Viewer'),sh('Morgan Blake','Editor')],
+     chapters:[
+      ch('Logo usage','Public',[owner,sh('Design Team','Viewer')],[
+        pg('Primary logo','Public',[owner,sh('Sam Okafor','Viewer'),sh('Jordan Lee','Viewer'),sh('Design Team','Viewer')],true),
+        pg('Clear space','All users',[owner,sh('Design Team','Viewer')],true),
+        pg('Misuse examples','Restricted',[owner,sh('Design Team','Viewer')],false)]),
+      ch('Color usage','Public',[sh('Morgan Blake','Editor'),sh('Marketing EMEA','Viewer')],[
+        pg('Color palette','Public',[sh('Morgan Blake','Editor'),sh('Sam Okafor','Viewer'),sh('Marketing EMEA','Viewer')],true)])]}),
+   gd('Partner Playbook',{vis:'Public',share:[sh('Sam Okafor','Viewer'),sh('Marketing EMEA','Viewer'),owner,sh('Omar Haddad','Viewer'),sh('Ana Costa','Viewer')],
+     chapters:[
+      ch('Partnership basics','Public',[owner,sh('Omar Haddad','Viewer')],[pg('Welcome','Public',[owner,sh('Omar Haddad','Viewer')],true),pg('Co-marketing rules','Public',[owner],true)]),
+      ch('Assets and templates','Public',[owner,sh('Sam Okafor','Viewer')],[pg('Template pack','Public',[owner,sh('Sam Okafor','Viewer')],true),pg('Co-branded logos','Public',[owner],true)]),
+      ch('Legal','Restricted',[owner],[pg('Legal terms','Restricted',[owner],false)])]}),
+   gd('Sales Onboarding',{vis:'Restricted',share:[owner,sh('Omar Haddad','Viewer'),sh('Ana Costa','Viewer')],
+     chapters:[ch('Week one','Restricted',[owner,sh('Sales team','Viewer')],[pg('Welcome','Restricted',[owner,sh('Sales team','Viewer')],true),pg('Tools and access','Restricted',[owner],false)])]}),
+   lp('Spring Campaign',{vis:'Public',group:'Seasonal campaigns',share:[owner,sh('Marketing EMEA','Viewer')],pub:true}),
+   lp('Product Launch',{vis:'All users',share:[owner,sh('Morgan Blake','Editor')],pub:false}),
+   gd('Press Kit',{vis:'Public',group:'Partner brands',inherits:true,share:[owner,sh('Morgan Blake','Editor')],
+     chapters:[ch('Boilerplate','Public',[owner],[pg('Company overview','Public',[owner],true)])]}),
+   lp('Event Toolkit',{vis:'Restricted',share:[owner,sh('Jordan Lee','Editor')],pub:true}),
+   gd('Design Principles',{vis:'All users',share:[owner,sh('Design Team','Editor')],
+     chapters:[ch('Foundations','All users',[owner,sh('Design Team','Editor')],[pg('Typography','All users',[owner],true),pg('Spacing','All users',[owner],false)])]}),
+   lp('Holiday Landing',{vis:'Public',group:'Seasonal campaigns',share:[owner],pub:false})
+  ];
+}
+const S={items:seed(),sel:new Set(),query:''};
+let M=null, MENU=null, CLIP=null;
+
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+const itemsWord=n=>n===1?'1 item':`${n} items`;
+const RANK={Restricted:1,'All users':2,Public:3};
+const VIS_ICON={Public:'globe','All users':'building',Restricted:'lock'};
+const ROLE_ICON={Owner:'person',Editor:'pencil',Viewer:'eye'};
+function walk(n,fn){fn(n);n.children.forEach(c=>walk(c,fn));}
+function link(n,p){n.parent=p||null;n.children.forEach(c=>link(c,n));}
+S.items.forEach(i=>link(i,null));
+const pagesOf=n=>{const a=[];walk(n,x=>{if(x.kind==='page')a.push(x);});return a;};
+const pubCount=n=>{const p=pagesOf(n);return [p.filter(x=>x.pub).length,p.length];};
+function people(share){const s=new Set();share.forEach(g=>{(GROUP_MEMBERS[g.name]||[g.name]).forEach(x=>s.add(x));});return s;}
+function wider(child,parent){
+  if(RANK[child.vis]>RANK[parent.vis]) return true;
+  const pp=people(parent.share); for(const x of people(child.share)) if(!pp.has(x)) return true; return false;
+}
+function validate(n){
+  if(n.parent && wider(n,n.parent)) return `Can't apply this. It would give access beyond the ${n.parent.kind==='guide'?'guide':'chapter'}.`;
+  for(const c of n.children) if(wider(c,n)) return `Can't apply this. Pages below would have wider access than this ${n.kind==='guide'?'guide':'chapter'}.`;
+  return null;
+}
+const sig=n=>JSON.stringify({v:n.vis,s:n.share,p:n.pub,i:n.inherits});
+const subOf=n=>{
+  if(n.kind==='guide'){const c=n.children.length,p=pagesOf(n).length;return `${plural(c,'chapter')}, ${plural(p,'page')}`;}
+  if(n.kind==='chapter') return plural(n.children.length,'page');
+  if(n.kind==='page') return n.parent.name;
+  return n.group?`Landing page · ${n.group}`:'Landing page';
+};
+
+/* ---------- toast / menu ---------- */
+function toast(msg){
+  const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');
+  t.innerHTML=`<div class="ok">${ic('check')}</div><div class="t">${esc(msg)}</div><button class="btn icon" aria-label="Close notification">${ic('close')}</button>`;
+  $('#toasts').appendChild(t);
+  const kill=()=>t.remove(); t.querySelector('button').onclick=kill; setTimeout(kill,5000);
+}
+function closeMenu(){ if(MENU){MENU.remove();MENU=null;} }
+function showMenu(anchor,items,opts={}){
+  closeMenu();
+  const m=document.createElement('div');m.className='menu';m.setAttribute('role','menu');
+  m.innerHTML=items.map((it,i)=>`<button role="menuitem" data-i="${i}" ${it.disabled?'disabled':''} ${it.tip&&it.disabled?`title="${esc(it.tip)}"`:''}>${it.icon?ic(it.icon,'s'):''}<span>${esc(it.label)}</span>${it.checked?`<span class="chk">${ic('check','s')}</span>`:''}</button>`).join('');
+  document.body.appendChild(m);
+  const r=anchor.getBoundingClientRect();
+  m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-8)+'px';
+  m.style.top=(r.bottom+4)+'px';
+  if(opts.matchWidth) m.style.minWidth=r.width+'px';
+  m.addEventListener('mousedown',e=>e.preventDefault());
+  m.addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(!b||b.disabled)return;const it=items[+b.dataset.i];closeMenu();it.onClick&&it.onClick();});
+  MENU=m;
+}
+document.addEventListener('click',e=>{ if(MENU && !MENU.contains(e.target) && !e.target.closest('[data-menu]')) closeMenu(); },true);
+
+/* ---------- overview ---------- */
+function renderApp(){
+  const n=S.sel.size, vis=S.items.filter(i=>i.name.toLowerCase().includes(S.query.toLowerCase()));
+  const guides=S.items.filter(i=>S.sel.has(i.id)&&i.kind==='guide').length;
+  $('#app').innerHTML=`
+  <header>
+   <div class="top"><div class="search" style="padding-left:12px">${ic('search')}<input placeholder="Want to search for something?" aria-label="Search Bynder"></div>
+     <div class="right"><button class="btn icon" aria-label="AI">${ic('spark')}</button><button class="btn icon" aria-label="Notifications">${ic('bell')}</button><div class="avatar">B</div><button class="btn icon" aria-label="Settings">${ic('gear')}</button></div></div>
+   <div class="nav"><div class="logo"><svg viewBox="0 0 28 24" width="28" height="24"><path d="M3 11l7 8L25 4" fill="none" stroke="#126dfe" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>bynder</div>
+     <div class="links">${['Home','Assets','Collections','Guidelines','Studio','Workflow'].map(l=>`<button class="btn ${l==='Guidelines'?'on':''}">${l}</button>`).join('')}</div>
+     <button class="btn pri">${ic('pub')}<span class="lbl">Upload media</span></button></div>
+  </header>
+  <div class="layout ${n?'anysel':''}">
+   <aside class="sidebar">
+    <div class="sb-sec"><button class="sb-item act">${ic('folderopen')}<span>All content</span><span class="n">148</span></button>
+      <button class="sb-item">${ic('folder')}<span>Groups</span><span class="n">3</span></button>
+      <button class="sb-item">${ic('guide')}<span>Guides</span><span class="n">58</span></button>
+      <button class="sb-item">${ic('lpage')}<span>Landing pages</span><span class="n">84</span></button></div><div class="sb-div"></div>
+    <div class="sb-sec"><button class="sb-item">${ic('home')}<span>Homepages</span><span class="n">1</span></button></div><div class="sb-div"></div>
+    <div class="sb-sec"><button class="sb-item">${ic('dash')}<span>Custom templates</span><span class="n">2</span></button>
+      <button class="sb-item">${ic('cols')}<span>Global sections</span><span class="n">4</span></button></div><div class="sb-div"></div>
+    <div class="sb-sec"><button class="sb-item">${ic('spark')}<span>Themes</span><span class="n">3</span></button>
+      <button class="sb-item">${ic('link')}<span>Custom links</span><span class="n">12</span></button></div>
+   </aside>
+   <main class="main">
+    <div class="phead">
+      ${n?`<div class="title sel">${n} selected</div>
+      <div class="actions" role="toolbar" aria-label="Bulk actions">
+        <button class="btn sec" data-act="move">${ic('move')}<span class="lbl">Move to group</span></button>
+        <button class="btn sec" data-act="pubmenu" data-menu>${ic('pub')}<span class="lbl">Publish</span>${ic('caret')}</button>
+        <button class="btn sec" data-act="unpubmenu" data-menu>${ic('unpub')}<span class="lbl">Unpublish</span>${ic('caret')}</button>
+        <button class="btn sec" data-act="manage">${ic('personadd')}<span class="lbl">Manage access</span></button>
+        <button class="btn sec icon" data-act="trash" data-tip="Move to Trash" aria-label="Move to Trash">${ic('trash')}</button>
+      </div>`:`<div class="title">All content</div><div class="actions"><button class="btn pri">${ic('add')}<span class="lbl">New</span>${ic('caret')}</button></div>`}
+    </div>
+    <div class="tool"><div class="search">${ic('search')}<input id="q" placeholder="Search" value="${esc(S.query)}" aria-label="Search content"></div>
+      <div class="r"><button class="btn"><span class="lbl">Name</span>${ic('caret')}</button><button class="btn icon" aria-label="Sort order">${ic('sort')}</button><span class="vdiv"></span><button class="btn icon on" aria-label="Grid view">${ic('grid')}</button><button class="btn icon" aria-label="List view">${ic('list')}</button></div></div>
+    <div class="grid">${vis.map(i=>`
+      <div class="card ${S.sel.has(i.id)?'sel':''}" data-id="${i.id}">
+        <div class="thumb"><button class="selbtn" data-act="toggle" aria-pressed="${S.sel.has(i.id)}" aria-label="Select ${esc(i.name)}">${ic('check')}</button><span class="ctype">${i.kind==='guide'?'Guide':'Landing page'}${i.group?' · '+esc(i.group):''}</span></div>
+        <div class="cinfo"><div class="ctitle">${esc(i.name)}</div><div class="csub">Edited today</div></div></div>`).join('')}</div>
+   </main>
+  </div>`;
+  const q=$('#q'); if(q){q.oninput=()=>{S.query=q.value;const pos=q.selectionStart;renderApp();const nq=$('#q');nq.focus();nq.setSelectionRange(pos,pos);};}
+  if(n){ $('[data-act=unpubmenu]').dataset.g=guides; }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b||M&&M.type==='manage'&&b.closest('#layer')) return;
+  if(b.closest('#layer')) return;
+  const act=b.dataset.act;
+  if(act==='toggle'){e.stopPropagation();const id=b.closest('.card').dataset.id;S.sel.has(id)?S.sel.delete(id):S.sel.add(id);renderApp();return;}
+  const selItems=S.items.filter(i=>S.sel.has(i.id)), n=selItems.length, guides=selItems.filter(i=>i.kind==='guide');
+  if(act==='move') openMove(selItems);
+  if(act==='trash') openTrash(selItems);
+  if(act==='manage') openManage(selItems);
+  if(act==='pubmenu'||act==='unpubmenu'){
+    const pub=act==='pubmenu', verb=pub?'Publish':'Unpublish';
+    showMenu(b,[{label:`${verb} selected items`,onClick:()=>openConfirmPub(selItems,pub)},
+      {label:`Choose pages to ${verb.toLowerCase()}…`,disabled:!guides.length,tip:'Only available for guides',onClick:()=>openChoose(guides,pub)}]);
+  }
+});
+document.addEventListener('click',e=>{ const c=e.target.closest('.card'); if(c&&!e.target.closest('[data-act]')&&S.sel.size){const id=c.dataset.id;S.sel.has(id)?S.sel.delete(id):S.sel.add(id);renderApp();} });
+
+/* ---------- dialogs ---------- */
+function layer(html,cls=''){ $('#layer').innerHTML=`<div class="scrim ${cls}" id="scrim">${html}</div>`; }
+function closeLayer(){ $('#layer').innerHTML=''; M=null; closeMenu(); }
+function dlg({icon,title,body,foot}){
+  return `<div class="dlg" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mhead">${icon?`<div class="thumbi">${ic(icon)}</div>`:''}<div class="ttl">${esc(title)}</div><button class="btn icon" data-m="close" aria-label="Close">${ic('close')}</button></div><div class="mbody">${body}</div><div class="mfoot"><span class="sp"></span>${foot}</div></div>`;
+}
+function openMove(items){
+  M={type:'move',items,group:null};
+  const draw=()=>layer(dlg({title:`Move ${itemsWord(items.length)} to group`,body:`<div class="fld"><label>Select group</label><button class="select ${M.group?'has':''}" data-m="grp" data-menu aria-haspopup="menu"><span>${esc(M.group||'Group name')}</span>${ic('caret')}</button></div>`,
+    foot:`<button class="btn sec" data-m="close">Cancel</button><button class="btn pri" data-m="domove" ${M.group?'':'disabled'}>Move</button>`}));
+  M.draw=draw; draw();
+}
+function openTrash(items){
+  M={type:'trash',items};
+  const one=items.length===1;
+  const text=one?'This item stays in Trash for 30 days. After that, Bynder deletes it permanently unless you restore it.':`These ${items.length} items stay in Trash for 30 days. After that, Bynder deletes them permanently unless you restore them.`;
+  layer(dlg({icon:'trash',title:`Move ${itemsWord(items.length)} to Trash`,body:`<p>${text}</p>`,
+    foot:`<button class="btn sec" data-m="close">Cancel</button><button class="btn pri" data-m="dotrash">Move to Trash</button>`}));
+}
+function openConfirmPub(items,pub){
+  M={type:'confirm',items,pub};
+  const v=pub?'Publish':'Unpublish';
+  const body=pub?'Publishing makes the selected guides and landing pages live, including all pages in the guides.':'Unpublishing hides the selected guides and landing pages from users, including all pages in the guides. Existing links stop working.';
+  layer(dlg({icon:pub?'pub':'unpub',title:`${v} ${itemsWord(items.length)}`,body:`<p>${body}</p>`,foot:`<button class="btn sec" data-m="close">Cancel</button><button class="btn pri" data-m="dopub">${v}</button>`}));
+}
+function setPub(item,pub){ item.kind==='lp'?item.pub=pub:walk(item,x=>{if(x.kind==='page')x.pub=pub;}); }
+
+/* ---------- choose pages ---------- */
+function openChoose(guides,pub){
+  const exp=new Set(guides.map(g=>g.id)); guides[0].children.forEach(c=>exp.add(c.id));
+  M={type:'choose',pub,guides,exp,chk:new Set()}; drawChoose();
+}
+const elig=(p)=>M.pub?!p.pub:p.pub;
+function chooseState(n){
+  const ps=pagesOf(n).filter(elig); if(!ps.length) return 'dis';
+  const c=ps.filter(p=>M.chk.has(p.id)).length; return c===0?'off':c===ps.length?'on':'ind';
+}
+function chooseRows(n,lvl,acc){
+  const st=n.kind==='page'?(elig(n)?(M.chk.has(n.id)?'on':'off'):'dis'):chooseState(n);
+  const open=M.exp.has(n.id), has=n.children.length>0;
+  let right;
+  if(n.kind==='page') right=n.pub?'<span class="pill ok">Published</span>':'<span class="pill off">Unpublished</span>';
+  else {const [a,b]=pubCount(n);right=`<span class="pcount">${a} of ${b} published</span>`;}
+  const sub=n.kind==='page'?`${n.parent.name} / ${n.parent.parent.name}`:subOf(n);
+  acc.push(`<div class="tr cols-choose" data-id="${n.id}"><div class="main-c" style="padding-left:${16+lvl*24}px">
+    <button class="chev ${has?'':'none'}" data-m="cexp" aria-label="${open?'Collapse':'Expand'}" aria-expanded="${open}">${ic(open?'down':'right')}</button>
+    <button class="cb ${st}" data-m="ccheck" role="checkbox" aria-checked="${st==='on'?'true':st==='ind'?'mixed':'false'}" ${st==='dis'?'aria-disabled="true"':''} aria-label="Select ${esc(n.name)}"><svg class="ico ck" viewBox="0 0 24 24"><path d="${P.check}"/></svg><svg class="ico im" viewBox="0 0 24 24"><path d="${P.minus}"/></svg></button>
+    <div class="mthumb">${ic(n.kind==='guide'?'guide':n.kind==='chapter'?'chapter':'lpage')}</div><div class="mt"><span class="nm">${esc(n.name)}</span><span class="sb">${esc(sub)}</span></div></div>
+    <div style="justify-content:flex-end">${right}</div></div>`);
+  if(open) n.children.forEach(c=>chooseRows(c,lvl+1,acc));
+}
+function drawChoose(){
+  const keep=$('#layer .mbody')?.scrollTop||0, acc=[]; M.guides.forEach(g=>chooseRows(g,0,acc));
+  const v=M.pub?'Publish':'Unpublish', n=M.chk.size;
+  layer(`<div class="big" role="dialog" aria-modal="true" aria-label="${v} pages"><div class="mhead"><div class="ttl">${v} pages in ${plural(M.guides.length,'guide')}</div><button class="btn icon" data-m="close" aria-label="Close">${ic('close')}</button></div>
+   <div class="mbody"><div class="thead cols-choose"><span class="b">Content</span><span style="text-align:right">Status</span></div>${acc.join('')}</div>
+   <div class="mfoot"><span class="sp"></span><button class="btn sec" data-m="close">Cancel</button><button class="btn pri" data-m="docp" ${n?'':'disabled'}>${v}</button></div></div>`);
+  $('#layer .mbody').scrollTop=keep;
+}
+
+/* ---------- manage access ---------- */
+function openManage(items){
+  M={type:'manage',edit:false,roots:items,exp:new Set(),open:new Set(),err:{},orig:null,items};
+  drawManage();
+}
+function cloneRoots(roots){ const c=structuredClone(roots); return c; }
+function startEdit(){
+  M.base=M.roots; M.roots=cloneRoots(M.base); M.orig={}; M.roots.forEach(r=>walk(r,x=>M.orig[x.id]=sig(x))); M.edit=true; M.err={}; M.clip=CLIP=null; drawManage();
+}
+function dirty(){ let d=false; M.roots.forEach(r=>walk(r,x=>{if(sig(x)!==M.orig[x.id])d=true;})); return d; }
+function find(id){let f=null;M.roots.forEach(r=>walk(r,x=>{if(x.id===id)f=x;}));return f;}
+function chips(n,row){
+  const s=n.share, total=s.length, open=M.open.has(n.id);
+  const chip=g=>`<span class="pill">${ic(ROLE_ICON[g.role]||'person')}${esc(g.name)}</span>`;
+  if(open||total<=2) return s.map(chip).join('')+(open&&total>2?`<button class="pill round" data-m="less" data-id="${n.id}" aria-label="Show fewer">${ic('minus','s')}</button>`:'');
+  const show=total>=5?2:1;
+  return s.slice(0,show).map(chip).join('')+`<button class="pill more" data-m="more" data-id="${n.id}" aria-label="Show ${total-show} more">+${total-show}</button>`;
+}
+function manageRows(n,lvl,acc){
+  const open=M.exp.has(n.id), has=n.children.length>0, chg=M.edit&&sig(n)!==M.orig[n.id];
+  const [a,b]=pubCount(n);
+  const inh=n.kind==='guide'&&n.inherits&&n.group?`<span class="inh" title="${esc(n.group)}">Inherited from ${esc(n.group)}</span>`:'';
+  const isPage=n.kind==='page'||n.kind==='lp';
+  const pubView=isPage?(n.pub?'<span class="pill ok">Published</span>':'<span class="pill off">Unpublished</span>'):`<span class="pcount">${a} of ${b} published</span>`;
+  const main=`<div class="main-c" style="padding-left:${16+lvl*24}px"><button class="chev ${has?'':'none'}" data-m="mexp" data-id="${n.id}" aria-label="${open?'Collapse':'Expand'} ${esc(n.name)}" aria-expanded="${open}">${ic(open?'down':'right')}</button>
+    <div class="mthumb">${ic(n.kind==='guide'?'guide':n.kind==='chapter'?'chapter':'lpage')}</div><div class="mt"><span class="nm">${esc(n.name)}</span><span class="sb">${esc(subOf(n))}</span>${inh}</div></div>`;
+  if(!M.edit){
+    acc.push(`<div class="tr cols-view" data-id="${n.id}">${main}<div><span class="pill">${ic(VIS_ICON[n.vis])}${n.vis}</span></div><div>${chips(n)}</div><div class="c-pub">${pubView}</div></div>`);
+  } else {
+    const parent=n.parent;
+    const grantees=n.share.map(g=>`<div class="gr"><span class="pill">${esc(g.name)}${g.role!=='Owner'?`<button class="x" data-m="rm" data-id="${n.id}" data-n="${esc(g.name)}" aria-label="Remove ${esc(g.name)}">${ic('close','s')}</button>`:''}</span>
+      <button class="btn sec sm rolebtn" data-m="role" data-menu data-id="${n.id}" data-n="${esc(g.name)}" ${g.role==='Owner'?'disabled':''}><span>${g.role}</span>${ic('caret','s')}</button></div>`).join('');
+    const isSrc=CLIP&&CLIP.from===n.id;
+    acc.push(`<div class="tr cols-edit ${chg?'chg':''}" data-id="${n.id}">${main}
+      <div><button class="btn sec sm" data-m="vis" data-menu data-id="${n.id}">${ic(VIS_ICON[n.vis],'s')}<span class="lbl">${n.vis}</span>${ic('caret','s')}</button></div>
+      <div><div class="shr"><div class="inp"><input data-m="add" data-id="${n.id}" placeholder="Add users, groups or profiles" aria-label="Add users, groups or profiles to ${esc(n.name)}" autocomplete="off"></div>${grantees}</div></div>
+      <div class="c-pub">${isPage?`<button class="tgl ${n.pub?'on':''}" data-m="tgl" data-id="${n.id}" role="switch" aria-checked="${n.pub}" aria-label="Published: ${esc(n.name)}"></button>`:`<span class="pcount">${a} of ${b} published</span>`}</div>
+      <div class="ra"><div class="rowact"><button class="${isSrc?'src':''}" data-m="copy" data-id="${n.id}" data-tip="${isSrc?'Copied':'Copy settings'}" aria-label="Copy settings from ${esc(n.name)}">${ic('copy','s')}</button><button data-m="paste" data-id="${n.id}" ${(!CLIP||isSrc)?'disabled':''} data-tip="Paste settings" aria-label="Paste settings onto ${esc(n.name)}">${ic('paste','s')}</button></div></div>
+      ${M.err[n.id]?`<div class="err" role="alert">${ic('warn','s')}<span>${esc(M.err[n.id])}</span></div>`:''}</div>`);
+  }
+  if(open) n.children.forEach(c=>manageRows(c,lvl+1,acc));
+}
+function drawManage(){
+  const keep=$('#layer .mbody')?.scrollTop||0, acc=[]; M.roots.forEach(r=>manageRows(r,0,acc));
+  const e=M.edit;
+  layer(`<div class="big" role="dialog" aria-modal="true" aria-label="Manage access"><div class="mhead"><div class="ttl">Manage access</div><button class="btn icon" data-m="x" aria-label="Close">${ic('close')}</button></div>
+  <div class="mbody"><div class="thead ${e?'cols-edit':'cols-view'}"><span class="b">Content</span><span>Visibility</span><span>Sharing</span><span style="text-align:right">Publish</span>${e?'<span></span>':''}</div>${acc.join('')}</div>
+  <div class="mfoot">${e?'':`<button class="btn sec" data-m="edit">${ic('pencil')}<span class="lbl">Edit</span></button>`}<span class="sp"></span>${e?`<button class="btn sec" data-m="cancel">Cancel</button><button class="btn pri" data-m="save">Save changes</button>`:`<button class="btn sec" data-m="close">Cancel</button>`}</div></div>`);
+  $('#layer .mbody').scrollTop=keep;
+}
+function tryEdit(id,fn,msg){
+  const n=find(id), before=structuredClone({vis:n.vis,share:n.share,pub:n.pub,inherits:n.inherits});
+  fn(n); const err=validate(n);
+  if(err){ Object.assign(n,before); M.err[id]=msg||err; setTimeout(()=>{ if(M&&M.err&&M.err[id]){delete M.err[id];drawManage();} },5000); }
+  else { delete M.err[id]; if(n.kind==='guide'&&(n.vis!==before.vis||JSON.stringify(n.share)!==JSON.stringify(before.share))) n.inherits=false; }
+  drawManage();
+}
+function addSuggest(input){
+  const n=find(input.dataset.id), q=input.value.trim().toLowerCase();
+  const have=new Set(n.share.map(g=>g.name));
+  const pool=[...PEOPLE,...Object.keys(GROUP_MEMBERS)].filter(x=>!have.has(x)&&x.toLowerCase().includes(q));
+  const parentPeople=n.parent?people(n.parent.share):null;
+  const items=pool.map(name=>{ const mem=GROUP_MEMBERS[name]||[name]; const bad=parentPeople&&mem.some(x=>!parentPeople.has(x));
+    return {label:name,icon:GROUP_MEMBERS[name]?'building':'person',disabled:!!bad,tip:`Not in the ${n.parent&&n.parent.kind==='guide'?'guide':'chapter'}`,onClick:()=>{tryEdit(n.id,x=>x.share.push(sh(name,'Viewer')));}}; });
+  if(!items.length){closeMenu();return;} showMenu(input.closest('.inp'),items,{matchWidth:true});
+}
+document.addEventListener('input',e=>{ const i=e.target.closest('input[data-m=add]'); if(i) addSuggest(i); });
+document.addEventListener('focusin',e=>{ const i=e.target.closest('input[data-m=add]'); if(i) addSuggest(i); });
+
+function requestClose(){
+  if(M&&M.type==='manage'&&M.edit&&dirty()){ confirmClose(); } else closeLayer();
+}
+function confirmClose(){
+  const html=`<div class="scrim" style="z-index:200" id="scrim2"><div class="dlg" role="alertdialog" aria-modal="true" aria-label="Close without saving?"><div class="mhead"><div class="thumbi">${ic('warn')}</div><div class="ttl">Close without saving?</div><button class="btn icon" data-m="keep" aria-label="Close">${ic('close')}</button></div><div class="mbody"><p>Your changes won’t be saved.</p></div><div class="mfoot"><span class="sp"></span><button class="btn sec" data-m="keep">Keep editing</button><button class="btn pri" data-m="discard">Close</button></div></div></div>`;
+  $('#layer').insertAdjacentHTML('beforeend',html);
+}
+function pasteTo(id){
+  if(!CLIP) return;
+  const c=CLIP;
+  tryEdit(id,n=>{
+    const own=n.share.filter(g=>g.role==='Owner');
+    n.vis=c.vis; n.share=[...own,...c.share.filter(g=>g.role!=='Owner').map(g=>({...g}))];
+    if((n.kind==='page'||n.kind==='lp')&&c.pub!==undefined) n.pub=c.pub;
+    if(n.kind==='guide') n.inherits=false;
+  },null);
+  const n=find(id); if(M.err[id]) M.err[id]=M.err[id].replace("apply this","paste");
+  drawManage();
+}
+
+/* ---------- layer events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('#layer [data-m]'); if(!b){ if(e.target.id==='scrim'&&M&&M.type!=='manage') closeLayer(); return; }
+  const a=b.dataset.m, id=b.dataset.id;
+  switch(a){
+   case 'close': closeLayer(); break;
+   case 'x': requestClose(); break;
+   case 'keep': $('#scrim2').remove(); break;
+   case 'discard': closeLayer(); break;
+   case 'grp': showMenu(b,GROUP_NAMES.map(g=>({label:g,checked:M.group===g,onClick:()=>{M.group=g;M.draw();}})),{matchWidth:true}); break;
+   case 'domove': { const g=M.group,n=M.items.length; M.items.forEach(i=>i.group=g); closeLayer(); renderApp(); toast(`${itemsWord(n)} moved to ${g}`); break; }
+   case 'dotrash': { const n=M.items.length,ids=new Set(M.items.map(i=>i.id)); S.items=S.items.filter(i=>!ids.has(i.id)); S.sel.clear(); closeLayer(); renderApp(); toast(`${itemsWord(n)} moved to Trash`); break; }
+   case 'dopub': { const n=M.items.length; M.items.forEach(i=>setPub(i,M.pub)); const v=M.pub?'published':'unpublished'; closeLayer(); renderApp(); toast(`${itemsWord(n)} ${v}`); break; }
+   case 'cexp': { const rid=b.closest('.tr').dataset.id; M.exp.has(rid)?M.exp.delete(rid):M.exp.add(rid); drawChoose(); break; }
+   case 'ccheck': {
+     const rid=b.closest('.tr').dataset.id; let node=null; M.guides.forEach(g=>walk(g,x=>{if(x.id===rid)node=x;}));
+     const ps=(node.kind==='page'?[node]:pagesOf(node)).filter(elig); if(!ps.length) break;
+     const all=ps.every(p=>M.chk.has(p.id)); ps.forEach(p=>all?M.chk.delete(p.id):M.chk.add(p.id));
+     // keep rows open so the selection is visible
+     drawChoose(); break; }
+   case 'docp': { const n=M.chk.size,pub=M.pub; M.guides.forEach(g=>walk(g,x=>{if(M.chk.has(x.id))x.pub=pub;})); closeLayer(); renderApp(); toast(`${plural(n,'page')} ${pub?'published':'unpublished'}`); break; }
+   case 'mexp': M.exp.has(id)?M.exp.delete(id):M.exp.add(id); drawManage(); break;
+   case 'more': M.open.add(id); drawManage(); break;
+   case 'less': M.open.delete(id); drawManage(); break;
+   case 'edit': startEdit(); break;
+   case 'cancel': M.roots=M.base; M.edit=false; M.err={}; CLIP=null; drawManage(); break;
+   case 'save': {
+     const n=M.base.length; const map=new Map(M.roots.map(r=>[r.id,r])); S.items=S.items.map(i=>map.get(i.id)||i);
+     S.items.forEach(i=>link(i,null)); closeLayer(); renderApp(); toast(`Access updated for ${itemsWord(n)}`); break; }
+   case 'vis': { const n=find(id); showMenu(b,['Public','All users','Restricted'].map(v=>({label:v,icon:VIS_ICON[v],checked:n.vis===v,disabled:!!(n.parent&&RANK[v]>RANK[n.parent.vis]),tip:`Wider than the ${n.parent&&n.parent.kind==='guide'?'guide':'chapter'}`,onClick:()=>tryEdit(id,x=>x.vis=v)}))); break; }
+   case 'role': { const name=b.dataset.n; showMenu(b,['Viewer','Editor'].map(r=>({label:r,checked:find(id).share.find(g=>g.name===name).role===r,onClick:()=>tryEdit(id,x=>x.share.find(g=>g.name===name).role=r)}))); break; }
+   case 'rm': tryEdit(id,x=>x.share=x.share.filter(g=>g.name!==b.dataset.n)); break;
+   case 'tgl': tryEdit(id,x=>x.pub=!x.pub); break;
+   case 'copy': { const n=find(id); CLIP={from:id,vis:n.vis,share:structuredClone(n.share),pub:(n.kind==='page'||n.kind==='lp')?n.pub:undefined}; drawManage(); break; }
+   case 'paste': pasteTo(id); break;
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ if(MENU){closeMenu();return;} if($('#scrim2')){$('#scrim2').remove();return;} if(M) requestClose(); }
+});
+
+renderApp();
+const sp=new URLSearchParams(location.search);
+if(sp.get('sel')){ S.items.slice(0,+sp.get('sel')).forEach(i=>S.sel.add(i.id)); renderApp(); }
+</script>
+</body>
+</html>
