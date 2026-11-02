@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flexible columns: editor prototype</title>
+<style>
+  /* Tokens: Bynder Storybook InlineBanner (warning) + Foundation gray scale. Logo and small icons are placeholders. */
+  :root {
+    --text: #031026; --text-2: #212c40; --text-3: #697783;
+    --primary: #126dfe; --warn-icon: #fea900; --warn-bg: #fef1d9;
+    --border: #d5d7da; --border-light: #e8e9eb; --bg: #f3f3f4; --surface: #fff; --hover: #edeef0; --card: #f8f8f9;
+    --radius: 5px; --gap: 20px; --pad: 40px; --vpad: 40px; --insp: 320px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.4 Inter, system-ui, sans-serif; }
+  .label { font-size: 12px; color: var(--text-3); } .mono { font-family: ui-monospace, monospace; }
+  svg.i { width: 20px; height: 20px; fill: currentColor; flex: none; }
+  button { font: inherit; cursor: pointer; }
+
+  /* App frame */
+  .frame { background: var(--surface); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  .gbar { height: 64px; display: flex; align-items: center; padding: 0 20px; gap: 18px; border-bottom: 1px solid var(--border-light); }
+  .logo { color: var(--primary); font-weight: 700; font-size: 20px; letter-spacing: -.02em; display: flex; align-items: center; gap: 6px; }
+  .search { flex: 1; max-width: 400px; margin: 0 auto; height: 40px; border: 1px solid var(--border); border-radius: var(--radius); display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--text-3); }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--hover); display: inline-flex; align-items: center; justify-content: center; font-weight: 500; }
+  .bell { position: relative; } .bell::after { content: ''; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+  .tbar { height: 64px; display: flex; align-items: center; padding: 0 20px; gap: 14px; border-bottom: 1px solid var(--border-light); }
+  .tbar .title { display: flex; align-items: center; gap: 12px; margin-right: auto; color: var(--text-2); }
+  .tbtn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: var(--hover); border-radius: var(--radius); height: 40px; padding: 0 14px; color: var(--text); }
+  .tbtn:disabled { opacity: .4; cursor: not-allowed; }
+  .iconbtn { border: 0; background: none; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; color: var(--text); }
+  .iconbtn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* Body: the whole page scrolls sideways, the inspector sits on top of it */
+  .body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .scroller { position: absolute; inset: 0; overflow: auto; background: var(--surface); }
+  .page { width: max-content; min-width: 100%; padding: 20px calc(var(--insp) + 40px) 40px 40px; } /* extra room on the right so the last column can scroll out from under the inspector */
+  .collapse { position: absolute; right: calc(var(--insp) + 12px); top: 8px; z-index: 5; width: 44px; height: 44px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: inline-flex; align-items: center; justify-content: center; }
+
+  .section { border-top: 2px solid rgba(18,109,254,.12); border-bottom: 2px solid rgba(18,109,254,.12); position: relative; margin-top: 28px; }
+  .section.sel { border-color: var(--primary); }
+  .section.sel::before { content: ''; position: absolute; left: -2px; top: -2px; bottom: -2px; width: 3px; background: var(--primary); }
+  .section-inner { display: flex; gap: var(--gap); padding: var(--vpad) var(--pad); }
+  .col { position: relative; flex: 1 1 0; min-width: 0; }
+  .addsec { margin: 28px 0 0 0; width: 58px; height: 48px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 22px; color: var(--text); }
+
+  /* Column lane (column selected): blue edges on both sides of the column, full section height */
+  .col.lane::before, .col.lane::after { content: ''; position: absolute; top: calc(-1 * var(--vpad) - 2px); bottom: calc(-1 * var(--vpad) - 2px); width: 3px; background: var(--primary); pointer-events: none; z-index: 2; }
+  .col.lane::before { left: calc(-1 * var(--gap) / 2 - 1.5px); } .col.lane.first::before { left: calc(-1 * var(--pad)); }
+  .col.lane::after { right: calc(-1 * var(--gap) / 2 - 1.5px); } .col.lane.last::after { right: calc(-1 * var(--pad)); }
+  .col:hover:not(.lane)::before, .col:hover:not(.lane)::after { content: ''; position: absolute; top: calc(-1 * var(--vpad) - 2px); bottom: calc(-1 * var(--vpad) - 2px); width: 2px; background: rgba(18,109,254,.25); pointer-events: none; }
+  .col:hover:not(.lane)::before { left: calc(-1 * var(--gap) / 2 - 1px); } .col:hover:not(.lane).first::before { left: calc(-1 * var(--pad)); }
+  .col:hover:not(.lane)::after { right: calc(-1 * var(--gap) / 2 - 1px); } .col:hover:not(.lane).last::after { right: calc(-1 * var(--pad)); }
+
+  /* Column tab: proposed hover handle on the column's top edge. Click selects, drag reorders. */
+  .coltab { position: absolute; top: -34px; left: 0; z-index: 4; display: flex; align-items: center; gap: 4px; background: var(--primary); color: #fff; border-radius: 4px 4px 0 0; padding: 3px 10px 3px 6px; font-size: 12px; cursor: grab; opacity: 0; user-select: none; touch-action: none; }
+  .coltab svg { width: 14px; height: 14px; }
+  .col:hover .coltab, .col.lane .coltab { opacity: 1; }
+
+  /* Cards: widgets. A selected card means a selected widget. */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; min-height: 210px; display: flex; align-items: center; justify-content: center; position: relative; padding: 10px; cursor: pointer; }
+  .card.wsel { border: 2px solid var(--primary); }
+  .card .content { overflow: hidden; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; } /* a widget wider than its column is clipped */
+  .ph { width: 44px; color: #8b93a1; } .ph svg { width: 44px; height: 44px; fill: currentColor; }
+  .pct { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+  .cid { position: absolute; top: 8px; left: 10px; font-size: 12px; color: var(--text-3); }
+  .clipdot { position: absolute; top: 8px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--warn-icon); display: none; }
+  .col.clipped .clipdot { display: block; }
+  .coltb { margin-top: 14px; } .coltb button { width: 40px; height: 40px; border: 1px solid var(--border-light); border-radius: var(--radius); background: var(--surface); box-shadow: 0 1px 3px rgba(3,16,38,.16); font-size: 20px; color: var(--text-2); }
+
+  /* Resize handle between columns, with live tooltip */
+  .handle { position: absolute; top: 0; bottom: 0; right: calc(-1 * var(--gap) / 2 - 7px); width: 14px; cursor: col-resize; z-index: 3; display: flex; justify-content: center; touch-action: none; }
+  .handle::after { content: ''; width: 4px; border-radius: 2px; background: var(--primary); opacity: 0; } .section-inner:hover .handle::after { opacity: .3; } .handle:hover::after, .handle.drag::after { opacity: 1; }
+  .handle.drag::before { content: attr(data-tip); position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; font-size: 12px; padding: 7px 10px; border-radius: 5px; white-space: nowrap; z-index: 6; }
+
+  /* Inspector sits on top of the page */
+  .inspector { position: absolute; right: 0; top: 0; bottom: 0; width: var(--insp); z-index: 6; border-left: 1px solid var(--border-light); background: var(--surface); display: flex; flex-direction: column; }
+  .iscroll { flex: 1; overflow-y: auto; }
+  .crumb { padding: 12px 16px 0; font-size: 12px; color: var(--text-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .crumb button { border: 0; background: none; color: var(--text-2); padding: 0; text-decoration: underline; } .crumb b { color: var(--text); font-weight: 500; }
+  .itabs { display: flex; margin: 12px 16px 16px; background: var(--hover); border-radius: var(--radius); padding: 3px; }
+  .itabs button { flex: 1; border: 0; background: none; padding: 8px; color: var(--text-2); border-radius: 4px; } .itabs button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(3,16,38,.12); }
+  .isec { padding: 16px; border-top: 1px solid var(--border-light); }
+  .ihead { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; } .ihead .t { flex: 1; } .ihead small { display: block; color: var(--text-2); font-size: 13px; }
+  .ico { width: 40px; height: 40px; border-radius: var(--radius); background: var(--hover); display: inline-flex; align-items: center; justify-content: center; }
+  .chev { color: #a5abb3; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+  .row .grow { flex: 1; }
+  .select { display: flex; align-items: center; gap: 10px; height: 40px; border: 1px solid var(--border); border-radius: var(--radius); padding: 0 12px; background: var(--surface); } .select .caret { margin-left: auto; }
+  .swatch { width: 32px; height: 32px; border-radius: 50%; background: #d5d7da; flex: none; }
+  .field { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); padding: 0 12px; height: 40px; color: var(--text-3); }
+  .field input { border: 0; background: none; width: 44px; font: inherit; color: var(--text); outline: none; }
+  .seg { display: inline-flex; gap: 2px; margin-left: auto; } .seg button { border: 0; background: none; min-width: 40px; height: 40px; border-radius: var(--radius); color: var(--text-2); } .seg button.on { background: var(--hover); color: var(--text); } .seg button:disabled { opacity: .35; cursor: not-allowed; }
+  .stepper { display: inline-flex; align-items: center; margin-left: auto; } .stepper button { width: 40px; height: 40px; border: 0; background: none; color: var(--text); display: inline-flex; align-items: center; justify-content: center; } .stepper button:disabled { opacity: .35; cursor: not-allowed; }
+  .stepper .val { width: 48px; height: 40px; border: 1px solid var(--border); border-radius: var(--radius); display: inline-flex; align-items: center; justify-content: center; color: var(--text-3); }
+  .help { font-size: 12px; color: var(--text-2); margin: 4px 0; } .help.warn { color: #c0392b; }
+  .tip { font-size: 12px; color: var(--text-3); }
+  .banner { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: var(--radius); background: var(--warn-bg); margin-bottom: 12px; }
+  .banner svg { width: 24px; height: 24px; flex: none; fill: var(--warn-icon); }
+  .banner .bt { font-size: 16px; line-height: 20px; } .banner .bd { font-size: 14px; color: var(--text-2); margin-top: 2px; }
+  .actions { border-top: 1px solid var(--border-light); display: flex; justify-content: space-around; padding: 10px 8px; background: var(--surface); }
+  .pane { display: none; } .pane.on { display: block; }
+  .btnrow { display: flex; gap: 8px; } .btnrow .tbtn { flex: 1; justify-content: center; height: 36px; background: var(--surface); }
+  .wide-btn { width: 100%; justify-content: center; height: 36px; background: var(--surface); margin-top: 8px; }
+
+</style>
+</head>
+<body>
+<div class="frame" id="appFrame">
+  <div class="gbar">
+    <svg class="i" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z"/></svg>
+    <span class="logo"><svg class="i" viewBox="0 0 24 24" style="width:28px;height:28px"><path d="M4 12.5 8.5 17 20 6.5l-1.8-1.9L8.5 13.4 5.9 10.6 4 12.5Z"/></svg>bynder</span>
+    <div class="search"><svg class="i" viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5Zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z"/></svg>Search</div>
+    <span class="bell"><svg class="i" viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2Z"/></svg></span>
+    <span class="avatar">B</span>
+  </div>
+  <div class="tbar">
+    <span class="title"><svg class="i" viewBox="0 0 24 24"><path d="m15.4 7.4-1.4-1.4-6 6 6 6 1.4-1.4-4.6-4.6 4.6-4.6Z"/></svg>Guide Title</span>
+    <button class="iconbtn" id="undoBtn" onclick="undo()" aria-label="Undo" title="Undo (Cmd+Z)"><svg class="i" viewBox="0 0 24 24"><path d="M12.5 8c-2.7 0-5.1 1-7 2.6L2 7v9h9l-3.6-3.6A8 8 0 0 1 20 16l2.4-.8A10.5 10.5 0 0 0 12.5 8Z"/></svg></button>
+    <button class="iconbtn" id="redoBtn" onclick="redo()" aria-label="Redo" title="Redo (Cmd+Shift+Z)"><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="M12.5 8c-2.7 0-5.1 1-7 2.6L2 7v9h9l-3.6-3.6A8 8 0 0 1 20 16l2.4-.8A10.5 10.5 0 0 0 12.5 8Z"/></svg></button>
+    <button class="tbtn"><svg class="i" viewBox="0 0 24 24"><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.8 7.8 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>Settings</button>
+    <button class="tbtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 5C7 5 2.7 8.1 1 12.5 2.7 16.9 7 20 12 20s9.3-3.1 11-7.5C21.3 8.1 17 5 12 5Zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>View</button>
+  </div>
+  <div class="body">
+    <button class="collapse" aria-label="Collapse sidebar"><svg class="i" viewBox="0 0 24 24"><path d="M3 5h18v2H3V5Zm8 4h10v2H11V9Zm0 4h10v2H11v-2ZM3 17h18v2H3v-2Zm0-8 4 3-4 3V9Z"/></svg></button>
+    <div class="scroller" id="scroller" onclick="canvasClick(event)">
+      <div class="page" id="page">
+        <div class="section sel" id="section"><div class="section-inner" id="editor"></div></div>
+        <button class="addsec" aria-label="Add section">+</button>
+      </div>
+    </div>
+
+    <aside class="inspector">
+      <div class="iscroll">
+        <div class="crumb" id="crumb"></div>
+        <div class="itabs" id="itabs"><button data-t="section" onclick="selectSection()">Section</button><button data-t="column" onclick="selectColumn(sel)">Column</button><button data-t="widget" onclick="selectWidget(sel)">Widget</button></div>
+
+        <!-- SECTION -->
+        <div class="pane on" id="paneSection">
+          <div class="isec" style="border-top:0"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="m16.6 10.6-6.2-6.2L3 11.8l6.2 6.2 7.4-7.4ZM19 15s-2 2.2-2 3.5a2 2 0 0 0 4 0C21 17.2 19 15 19 15ZM3 21h18v2H3z"/></svg></span><span class="t">Background</span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></div>
+            <div class="select"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 2 2 0 0 0 1.5-3.3 2 2 0 0 1 1.5-3.2H18a4 4 0 0 0 4-4C22 6 17.5 2 12 2Z"/></svg>Solid color<svg class="i caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7Z"/></svg></div>
+            <div class="row"><span class="swatch"></span><span class="grow">Background color</span><svg class="i chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7Z"/></svg></div>
+            <div class="row"><span class="swatch"></span><span class="grow">Overlay</span><span class="field" style="width:90px;justify-content:flex-end">%</span></div>
+          </div>
+          <div class="isec"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h18v5H3V3Zm0 7h5v11H3V10Zm7 0h4v11h-4V10Zm6 0h5v11h-5V10Z"/></svg></span><span class="t">Layout</span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 15.4 4.6-4.6 4.6 4.6L18 14l-6-6-6 6 1.4 1.4Z"/></svg></div>
+            <div id="bannerSlot"></div>
+            <div class="row"><span class="grow">Columns</span>
+              <span class="stepper"><button id="minus" onclick="removeLast()" aria-label="Remove column"><svg class="i" viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg></button><span class="val" id="cnt"></span><button id="plus" onclick="addCol()" aria-label="Add column"><svg class="i" viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg></button></span>
+            </div>
+            <div class="help" id="colHelp"></div>
+            <div style="margin-top:16px">Column gap</div>
+            <div class="row"><span class="field"><input id="gapIn" value="20" onchange="setGapPx(+this.value)">px</span>
+              <span class="seg" id="gapSeg"><button onclick="setGapPx(0)">0</button><button onclick="setGapPx(20)">S</button><button onclick="setGapPx(40)">M</button><button onclick="setGapPx(80)">L</button></span></div>
+            <div class="help" id="gapHelp"></div>
+          </div>
+          <div class="isec"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h18v18H3V3Zm2 2v14h14V5H5Zm3 2h5v2H10v3H8V7Z"/></svg></span><span class="t">Size</span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 15.4 4.6-4.6 4.6 4.6L18 14l-6-6-6 6 1.4 1.4Z"/></svg></div>
+            <div class="label">Section width (maximum)</div>
+            <div class="row"><span class="field">W <input id="wIn" style="width:56px" value="1200" onchange="setSw(+this.value)">px</span>
+              <span class="seg" id="wSeg"><button onclick="setSw(800)">S</button><button onclick="setSw(1200)">M</button><button onclick="setSw(1600)">L</button></span></div>
+            <div class="help">Columns shrink on smaller screens but never grow past this width.</div>
+            <div class="row"><span class="field">H <input style="width:56px" value="120" disabled></span><span class="seg"><span style="align-self:center;color:var(--text-2)">px ▾</span></span></div>
+          </div>
+          <div class="isec"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h6v2H5v4H3V3Zm12 0h6v6h-2V5h-4V3ZM3 15h2v4h4v2H3v-6Zm16 0h2v6h-6v-2h4v-4ZM8 8h8v8H8V8Z"/></svg></span><span class="t">Padding</span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 15.4 4.6-4.6 4.6 4.6L18 14l-6-6-6 6 1.4 1.4Z"/></svg></div>
+            <div class="row"><span class="field"><svg class="i" viewBox="0 0 24 24" style="color:var(--text)"><path d="M3 4h2v16H3V4Zm16 0h2v16h-2V4ZM8 8h8v8H8V8Z"/></svg><input id="padIn" value="40" onchange="setPad(+this.value)">px</span>
+              <span class="seg"><button onclick="setPad(20)">S</button><button onclick="setPad(40)">M</button><button onclick="setPad(80)">L</button></span></div>
+            <div class="row"><span class="field"><svg class="i" viewBox="0 0 24 24" style="color:var(--text)"><path d="M4 3h16v2H4V3Zm0 16h16v2H4v-2ZM8 8h8v8H8V8Z"/></svg><input id="vpadIn" value="40" onchange="setVpad(+this.value)">px</span>
+              <span class="seg"><button onclick="setVpad(20)">S</button><button onclick="setVpad(40)">M</button><button onclick="setVpad(80)">L</button></span></div>
+            <div class="tip">S/M/L presets aren't in the design system (no segmented control). Built to match the current inspector.</div>
+          </div>
+        </div>
+
+        <!-- COLUMN -->
+        <div class="pane" id="paneColumn">
+          <div class="isec" style="border-top:0"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Z"/></svg></span><span class="t" id="colTitle"></span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></div>
+            <div class="row"><span class="field">W <input id="cwIn" style="width:56px" onchange="setColW(+this.value)">px</span><span class="label" id="cwPct"></span></div>
+            <div class="help" id="cwHelp"></div>
+            <div class="btnrow"><button class="tbtn" id="mvL" onclick="moveCol(-1)"><svg class="i" viewBox="0 0 24 24"><path d="m15.4 7.4-1.4-1.4-6 6 6 6 1.4-1.4-4.6-4.6 4.6-4.6Z"/></svg>Move left</button><button class="tbtn" id="mvR" onclick="moveCol(1)"><svg class="i" viewBox="0 0 24 24"><path d="m8.6 16.6 4.6-4.6-4.6-4.6L10 6l6 6-6 6-1.4-1.4Z"/></svg>Move right</button></div>
+            <button class="tbtn wide-btn" id="del" onclick="delSel()"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5 11H7v-2h10v2Z"/></svg>Remove Column</button>
+          </div>
+        </div>
+
+        <!-- WIDGET -->
+        <div class="pane" id="paneWidget">
+          <div class="isec" style="border-top:0"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h18v18H3V3Zm2 2v14h14V5H5Z"/></svg></span><span class="t">Widget</span></div>
+            <div class="help">This is where the selected widget's own settings appear. They don't change with flexible columns.</div>
+            <div class="tip">Press Esc to select its column, or use the breadcrumb above.</div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="iconbtn" aria-label="Swap"><svg class="i" viewBox="0 0 24 24"><path d="M3 5h8v14H3V5Zm10 0h8v6h-8V5Zm0 8h8v6h-8v-6Z"/></svg></button>
+        <button class="iconbtn" aria-label="Duplicate"><svg class="i" viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></svg></button>
+        <button class="iconbtn" aria-label="Move up"><svg class="i" viewBox="0 0 24 24"><path d="m7.4 15.4 4.6-4.6 4.6 4.6L18 14l-6-6-6 6 1.4 1.4Z"/></svg></button>
+        <button class="iconbtn" aria-label="Move down"><svg class="i" viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></button>
+        <button class="iconbtn" aria-label="Delete section"><svg class="i" viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12ZM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4Z"/></svg></button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const MIN = 130;
+let sectionW = 1200, gap = 20, pad = 40, vpad = 40, sel = 0, selMode = 'section';
+let cols = [34, 33, 33], ids = ['A', 'B', 'C'];
+const $ = id => document.getElementById(id), root = document.documentElement;
+const PH = '<svg viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="16" rx="4"/><rect x="6" y="28" width="36" height="4" rx="2"/><rect x="6" y="36" width="24" height="4" rx="2"/></svg>';
+const WARN = '<svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>';
+const GRIP = '<svg viewBox="0 0 24 24"><path d="M9 5h2v2H9V5Zm4 0h2v2h-2V5ZM9 11h2v2H9v-2Zm4 0h2v2h-2v-2ZM9 17h2v2H9v-2Zm4 0h2v2h-2v-2Z"/></svg>';
+
+const usable = (n = cols.length, g = gap, w = sectionW, p = pad) => w - 2 * p - (n - 1) * g;
+const minPct = (n = cols.length, g = gap, w = sectionW, p = pad) => Math.ceil(100 * MIN / usable(n, g, w, p));
+const canFit = (n, g = gap, w = sectionW, p = pad) => usable(n, g, w, p) > 0 && n * minPct(n, g, w, p) <= 100;
+const maxCols = () => { let m = 1; while (canFit(m + 1)) m++; return m; };
+const visW = () => $('appFrame').clientWidth - 320;   // canvas the creator sees: window minus the inspector
+function round100(a) { const f = a.map(Math.floor); let left = 100 - f.reduce((s, r) => s + r, 0);
+  a.map((r, i) => [r - f[i], i]).sort((x, y) => y[0] - x[0]).forEach(([, i]) => { if (left-- > 0) f[i]++; }); return f; }
+function take(next, need, m, skip = new Set()) {
+  for (let act = next.map((_, i) => i).filter(i => !skip.has(i)); need > 1e-6 && act.length; act = act.filter(i => next[i] - m > 1e-6)) {
+    const tot = act.reduce((s, i) => s + next[i], 0), rd = need;
+    act.forEach(i => { const g = Math.min(rd * next[i] / tot, next[i] - m); next[i] -= g; need -= g; }); }
+  return need; }
+function normalize() { const m = minPct(), next = [...cols], lifted = new Set(); let def = 0;
+  next.forEach((r, i) => { if (r < m) { def += m - r; next[i] = m; lifted.add(i); } });
+  take(next, def, m, lifted); cols = round100(next); }
+
+/* ---------- history (Undo / Redo) ---------- */
+let hist = [], hi = -1;
+const snap = () => JSON.stringify({ cols, ids, sectionW, gap, pad, vpad });
+function commit() { hist = hist.slice(0, hi + 1); hist.push(snap()); if (hist.length > 51) hist.shift(); hi = hist.length - 1; updateInspector(); }
+function restore(s) { const o = JSON.parse(s); cols = o.cols; ids = o.ids; sectionW = o.sectionW; gap = o.gap; pad = o.pad; vpad = o.vpad;
+  root.style.setProperty('--gap', gap + 'px'); root.style.setProperty('--pad', pad + 'px'); root.style.setProperty('--vpad', vpad + 'px'); sel = Math.min(sel, cols.length - 1); buildEditor(); }
+function undo() { if (hi > 0) { hi--; restore(hist[hi]); } }
+function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi]); } }
+
+/* ---------- rendering ---------- */
+const card = (i, pct) => `<div class="card ${selMode === 'widget' && i === sel ? 'wsel' : ''}"><span class="cid">${ids[i] || ''}</span><span class="clipdot" title="A widget is wider than this column and is clipped"></span><div class="content"><span class="ph">${PH}</span><span class="pct">${pct}%</span></div></div>`;
+
+function buildEditor() {
+  const n = cols.length;
+  $('editor').innerHTML = cols.map((r, i) => `<div class="col ${i === 0 ? 'first' : ''} ${i === n - 1 ? 'last' : ''} ${selMode === 'column' && i === sel ? 'lane' : ''}" data-i="${i}">
+      <div class="coltab" data-i="${i}">${GRIP}Column ${i + 1}</div>${card(i, r)}<div class="coltb"><button title="Add widget" aria-label="Add widget">+</button></div>${i < n - 1 ? `<div class="handle" data-i="${i}"></div>` : ''}</div>`).join('');
+  $('editor').querySelectorAll('.handle').forEach(h => h.addEventListener('pointerdown', startDrag));
+  $('editor').querySelectorAll('.coltab').forEach(t => t.addEventListener('pointerdown', startReorder));
+  update();
+}
+
+/* ---------- selection: section > column > widget ---------- */
+function refreshSel() {
+  $('section').classList.toggle('sel', selMode === 'section');
+  [...$('editor').children].forEach((c, i) => { c.classList.toggle('lane', selMode === 'column' && i === sel); c.querySelector('.card').classList.toggle('wsel', selMode === 'widget' && i === sel); });
+  document.querySelectorAll('#itabs button').forEach(b => b.classList.toggle('on', b.dataset.t === selMode));
+  ['Section', 'Column', 'Widget'].forEach(k => $('pane' + k).classList.toggle('on', k.toLowerCase() === selMode));
+  const parts = [`<button onclick="selectSection()">Section</button>`];
+  if (selMode !== 'section') parts.push(selMode === 'column' ? `<b>Column ${sel + 1}</b>` : `<button onclick="selectColumn(sel)">Column ${sel + 1}</button>`);
+  if (selMode === 'widget') parts.push('<b>Widget</b>');
+  if (selMode === 'section') parts[0] = '<b>Section</b>';
+  $('crumb').innerHTML = parts.join('<span>›</span>');
+  updateInspector();
+}
+function selectSection() { selMode = 'section'; refreshSel(); }
+function selectColumn(i, reveal = true) { sel = Math.max(0, Math.min(i, cols.length - 1)); selMode = 'column'; refreshSel(); if (reveal) revealCol(sel); }
+function selectWidget(i) { sel = Math.max(0, Math.min(i, cols.length - 1)); selMode = 'widget'; refreshSel(); revealCol(sel); }
+function canvasClick(e) {
+  if (e.target.closest('.handle') || e.target.closest('.coltab') || e.target.closest('.coltb')) return;
+  const c = e.target.closest('.col');
+  if (e.target.closest('.card')) return selectWidget(+c.dataset.i);
+  if (c) return selectColumn(+c.dataset.i);
+  if (e.target.closest('.section')) return selectSection();
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (selMode === 'widget') selectColumn(sel); else if (selMode === 'column') selectSection(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+});
+/* Selecting a column scrolls the page so the column is fully visible, left of the inspector */
+function revealCol(i) {
+  const el = $('editor').children[i], sc = $('scroller'); if (!el) return;
+  const vis = sc.clientWidth - 320, r = el.getBoundingClientRect(), s = sc.getBoundingClientRect();
+  const L = r.left - s.left + sc.scrollLeft, R = L + r.width;
+  if (R > sc.scrollLeft + vis - 24) sc.scrollTo({ left: R - vis + 24, behavior: 'smooth' });
+  else if (L < sc.scrollLeft + 24) sc.scrollTo({ left: Math.max(0, L - 24), behavior: 'smooth' });
+}
+
+/* ---------- interactions ---------- */
+function startDrag(e) { e.preventDefault(); e.stopPropagation();
+  const h = e.currentTarget, i = +h.dataset.i, x0 = e.clientX, a = cols[i], b = cols[i + 1], u = usable(), m = minPct();
+  h.setPointerCapture(e.pointerId); h.classList.add('drag'); let changed = false;
+  h.onpointermove = ev => { const d = Math.max(m - a, Math.min(b - m, Math.round((ev.clientX - x0) / u * 100))); cols[i] = a + d; cols[i + 1] = b - d; changed = changed || d !== 0;
+    h.dataset.tip = (cols[i] === m || cols[i + 1] === m) ? `Minimum width ${MIN}px` : `${cols[i]}% · ${cols[i + 1]}%`; update(); };
+  h.onpointerup = () => { h.onpointermove = h.onpointerup = null; h.classList.remove('drag'); if (changed) commit(); }; }
+function swap(a, b) { [cols[a], cols[b]] = [cols[b], cols[a]]; [ids[a], ids[b]] = [ids[b], ids[a]]; sel = b; }
+function startReorder(e) { e.preventDefault(); e.stopPropagation();
+  let cur = +e.currentTarget.dataset.i, x0 = e.clientX, moved = false; selectColumn(cur, false);
+  const mv = ev => { const el = $('editor').children[cur]; const w = el.getBoundingClientRect().width + gap, dx = ev.clientX - x0;
+    if (dx > w * .6 && cur < cols.length - 1) { swap(cur, cur + 1); cur++; x0 += w; moved = true; buildEditor(); }
+    else if (dx < -w * .6 && cur > 0) { swap(cur, cur - 1); cur--; x0 -= w; moved = true; buildEditor(); } };
+  const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); if (moved) commit(); };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); }
+function addCol() { if (!canFit(cols.length + 1)) return;
+  const m = minPct(cols.length + 1), next = [...cols], share = 100 / (cols.length + 1), short = take(next, share, m);
+  cols = round100([...next, share - short]); ids.push(String.fromCharCode(65 + (Math.max(...ids.map(x => x.charCodeAt(0))) - 64) % 26)); buildEditor(); commit(); }
+function delAt(i) { if (cols.length < 2) return; const [gone] = cols.splice(i, 1); ids.splice(i, 1);
+  const t = cols.reduce((s, r) => s + r, 0); cols = round100(cols.map(r => r + gone * r / t)); normalize(); sel = Math.min(i, cols.length - 1); buildEditor(); commit(); }
+const removeLast = () => delAt(cols.length - 1), delSel = () => { delAt(sel); refreshSel(); };
+function moveCol(d) { const j = sel + d; if (j < 0 || j >= cols.length) return; swap(sel, j); buildEditor(); commit(); revealCol(sel); }
+function setColW(px) { const n = cols.length; if (n < 2) { updateInspector(); return; }
+  const u = usable(), m = minPct(); let t = Math.round(px / u * 100); t = Math.max(m, Math.min(100 - m * (n - 1), t)); const d = t - cols[sel];
+  if (!d) { updateInspector(); return; }
+  const next = [...cols], others = next.map((_, i) => i).filter(i => i !== sel);
+  if (d > 0) { const rest = take(next, d, m, new Set([sel])); next[sel] = cols[sel] + d - rest; }
+  else { const tot = others.reduce((s, i) => s + next[i], 0); others.forEach(i => { next[i] += -d * next[i] / tot; }); next[sel] = t; }
+  cols = round100(next); normalize(); buildEditor(); commit(); }
+function setSw(v) { v = Math.max(400, Math.min(2400, v || sectionW)); while (!canFit(cols.length, gap, v) && v < 2400) v += 10; sectionW = v; normalize(); buildEditor(); commit(); }
+function setGapPx(v) { v = Math.max(0, Math.min(120, v || 0)); if (!canFit(cols.length, v)) { updateInspector(); return; } gap = v; root.style.setProperty('--gap', v + 'px'); normalize(); buildEditor(); commit(); }
+function setPad(v) { v = Math.max(0, Math.min(160, v || 0)); if (!canFit(cols.length, gap, sectionW, v)) { updateInspector(); return; } pad = v; root.style.setProperty('--pad', v + 'px'); normalize(); buildEditor(); commit(); }
+function setVpad(v) { vpad = Math.max(0, Math.min(160, v || 0)); root.style.setProperty('--vpad', vpad + 'px'); update(); commit(); }
+
+function update() {
+  const n = cols.length, wide = sectionW + 80 > visW();
+  $('section').style.width = sectionW + 'px';
+  /* Only signal: the Inline banner. The page itself scrolls sideways, as it does today. */
+  $('bannerSlot').innerHTML = wide ? `<div class="banner" role="status">${WARN}<div><div class="bt">Wider than your screen</div><div class="bd">Set to ${sectionW}px, screen shows ${visW()}px</div></div></div>` : '';
+  [...$('editor').children].forEach((el, i) => { el.style.flexGrow = cols[i];
+    el.querySelector('.pct').textContent = `${cols[i]}% · ${Math.round(usable() * cols[i] / 100)}px`; });
+  updateInspector();
+}
+function updateInspector() {
+  const n = cols.length, mx = maxCols();
+  $('cnt').textContent = n; $('plus').disabled = !canFit(n + 1); $('minus').disabled = n < 2;
+  const full = !canFit(n + 1);
+  $('colHelp').className = 'help' + (full ? ' warn' : '');
+  $('colHelp').textContent = full ? `Maximum reached: ${mx} columns fit at this section width. Each column needs at least ${MIN}px.` : `Up to ${mx} columns fit. Each column needs at least ${MIN}px.`;
+  $('gapIn').value = gap; $('wIn').value = sectionW; $('padIn').value = pad; $('vpadIn').value = vpad;
+  const G = [0, 20, 40, 80], blocked = G.filter(g => !canFit(n, g));
+  document.querySelectorAll('#gapSeg button').forEach((b, i) => { b.disabled = !canFit(n, G[i]); b.classList.toggle('on', G[i] === gap); });
+  document.querySelectorAll('#wSeg button').forEach((b, i) => b.classList.toggle('on', [800, 1200, 1600][i] === sectionW));
+  $('gapHelp').className = 'help' + (blocked.length ? ' warn' : '');
+  $('gapHelp').textContent = blocked.length ? `${blocked.map(g => g + 'px').join(', ')} gap would make a column narrower than ${MIN}px.` : '';
+  // Column tab
+  $('colTitle').textContent = `Column ${sel + 1} of ${n}`;
+  $('cwIn').value = Math.round(usable() * (cols[sel] || 0) / 100); $('cwPct').textContent = (cols[sel] || 0) + '%';
+  $('cwHelp').textContent = n < 2 ? 'A section needs at least 1 column.' : `Minimum ${MIN}px. The other columns adjust.`;
+  $('mvL').disabled = sel === 0; $('mvR').disabled = sel === n - 1; $('del').disabled = n < 2;
+  $('undoBtn').disabled = hi <= 0; $('redoBtn').disabled = hi >= hist.length - 1;
+}
+window.addEventListener('resize', update);
+normalize(); buildEditor(); commit(); refreshSel();
+</script>
+</body>
+</html>
