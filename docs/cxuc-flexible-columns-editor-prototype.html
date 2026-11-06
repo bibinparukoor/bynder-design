@@ -60,6 +60,7 @@
   /* Cards: widgets. A selected card means a selected widget. */
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; min-height: 210px; display: flex; align-items: center; justify-content: center; position: relative; padding: 10px; cursor: pointer; }
   .card.wsel { border: 2px solid var(--primary); }
+  .card.empty { border-style: dashed; background: transparent; } .emptyl { font-size: 12px; color: var(--text-3); }
   .card .content { overflow: hidden; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; } /* a widget wider than its column is clipped */
   .ph { width: 44px; color: #8b93a1; } .ph svg { width: 44px; height: 44px; fill: currentColor; }
   .pct { font-size: 12px; color: var(--text-3); white-space: nowrap; }
@@ -99,6 +100,13 @@
   .banner svg { width: 24px; height: 24px; flex: none; fill: var(--warn-icon); }
   .banner .bt { font-size: 16px; line-height: 20px; } .banner .bd { font-size: 14px; color: var(--text-2); margin-top: 2px; }
   .actions { border-top: 1px solid var(--border-light); display: flex; justify-content: space-around; padding: 10px 8px; background: var(--surface); }
+  .scrim { position: fixed; inset: 0; background: rgba(3,16,40,.5); display: flex; align-items: center; justify-content: center; z-index: 50; } .scrim[hidden] { display: none; }
+  .modal { background: var(--surface); border-radius: 8px; width: 520px; max-width: calc(100vw - 32px); padding: 20px 24px; box-shadow: 0 8px 32px rgba(3,16,38,.28); }
+  .modal .mh { display: flex; align-items: center; justify-content: space-between; font-size: 16px; } .modal p { margin: 20px 0 28px; color: var(--text-2); } .modal .mf { display: flex; justify-content: flex-end; gap: 8px; }
+  .tbtn.danger { background: #d93a2f; border-color: #d93a2f; color: #fff; }
+  .colpick { border: 0; background: none; padding: 0; text-align: left; color: var(--text); } .colmenu { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 4px 16px rgba(3,16,38,.16); margin: -4px 0 8px; } .colmenu[hidden] { display: none; }
+  .colmenu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px 12px; } .colmenu button:hover, .colmenu button.on { background: var(--hover); }
+  .handle:focus-visible::after { opacity: 1; } .handle:focus-visible { outline: none; }
   .pane { display: none; } .pane.on { display: block; }
   .btnrow { display: flex; gap: 8px; } .btnrow .tbtn { flex: 1; justify-content: center; height: 36px; background: var(--surface); }
   .wide-btn { width: 100%; justify-content: center; height: 36px; background: var(--surface); margin-top: 8px; }
@@ -152,6 +160,7 @@
             <div class="row"><span class="field"><input id="gapIn" value="20" onchange="setGapPx(+this.value)">px</span>
               <span class="seg" id="gapSeg"><button onclick="setGapPx(0)">0</button><button onclick="setGapPx(20)">S</button><button onclick="setGapPx(40)">M</button><button onclick="setGapPx(80)">L</button></span></div>
             <div class="help" id="gapHelp"></div>
+            <button class="tbtn wide-btn" id="evenBtn" onclick="distributeEvenly()">Distribute evenly</button>
           </div>
           <div class="isec"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h18v18H3V3Zm2 2v14h14V5H5Zm3 2h5v2H10v3H8V7Z"/></svg></span><span class="t">Size</span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 15.4 4.6-4.6 4.6 4.6L18 14l-6-6-6 6 1.4 1.4Z"/></svg></div>
             <div class="label">Section width (maximum)</div>
@@ -171,8 +180,9 @@
 
         <!-- COLUMN -->
         <div class="pane" id="paneColumn">
-          <div class="isec" style="border-top:0"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Z"/></svg></span><span class="t" id="colTitle"></span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></div>
-            <div class="row"><span class="field">W <input id="cwIn" style="width:56px" onchange="setColW(+this.value)">px</span><span class="label" id="cwPct"></span></div>
+          <div class="isec" style="border-top:0"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Z"/></svg></span><span class="t"><button class="colpick" id="colTitle" onclick="toggleColMenu(event)" aria-haspopup="listbox"></button></span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></div>
+            <div class="colmenu" id="colMenu" hidden></div>
+            <div class="row"><span class="grow">Width</span><span id="cwRead" class="mono"></span></div>
             <div class="help" id="cwHelp"></div>
             <div class="btnrow"><button class="tbtn" id="mvL" onclick="moveCol(-1)"><svg class="i" viewBox="0 0 24 24"><path d="m15.4 7.4-1.4-1.4-6 6 6 6 1.4-1.4-4.6-4.6 4.6-4.6Z"/></svg>Move left</button><button class="tbtn" id="mvR" onclick="moveCol(1)"><svg class="i" viewBox="0 0 24 24"><path d="m8.6 16.6 4.6-4.6-4.6-4.6L10 6l6 6-6 6-1.4-1.4Z"/></svg>Move right</button></div>
             <button class="tbtn wide-btn" id="del" onclick="delSel()"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5 11H7v-2h10v2Z"/></svg>Remove Column</button>
@@ -198,10 +208,17 @@
   </div>
 </div>
 
+<div class="scrim" id="scrim" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="mh"><span id="mTitle">Remove this column?</span><button class="iconbtn" onclick="closeModal()" aria-label="Close"><svg class="i" viewBox="0 0 24 24"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></svg></button></div>
+    <p>Everything in it will be deleted.</p>
+    <div class="mf"><button class="tbtn" onclick="closeModal()">Cancel</button><button class="tbtn danger" id="mOk" onclick="confirmRemove()">Remove column</button></div>
+  </div>
+</div>
 <script>
 const MIN = 130;
 let sectionW = 1200, gap = 20, pad = 40, vpad = 40, sel = 0, selMode = 'section';
-let cols = [34, 33, 33], ids = ['A', 'B', 'C'];
+let cols = [34, 33, 33], ids = ['A', 'B', 'C'], wc = [1, 1, 1]; // wc = widgets per column
 const $ = id => document.getElementById(id), root = document.documentElement;
 const PH = '<svg viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="16" rx="4"/><rect x="6" y="28" width="36" height="4" rx="2"/><rect x="6" y="36" width="24" height="4" rx="2"/></svg>';
 const WARN = '<svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>';
@@ -225,21 +242,21 @@ function normalize() { const m = minPct(), next = [...cols], lifted = new Set();
 
 /* ---------- history (Undo / Redo) ---------- */
 let hist = [], hi = -1;
-const snap = () => JSON.stringify({ cols, ids, sectionW, gap, pad, vpad });
+const snap = () => JSON.stringify({ cols, ids, wc, sectionW, gap, pad, vpad });
 function commit() { hist = hist.slice(0, hi + 1); hist.push(snap()); if (hist.length > 51) hist.shift(); hi = hist.length - 1; updateInspector(); }
-function restore(s) { const o = JSON.parse(s); cols = o.cols; ids = o.ids; sectionW = o.sectionW; gap = o.gap; pad = o.pad; vpad = o.vpad;
+function restore(s) { const o = JSON.parse(s); cols = o.cols; ids = o.ids; wc = o.wc; sectionW = o.sectionW; gap = o.gap; pad = o.pad; vpad = o.vpad;
   root.style.setProperty('--gap', gap + 'px'); root.style.setProperty('--pad', pad + 'px'); root.style.setProperty('--vpad', vpad + 'px'); sel = Math.min(sel, cols.length - 1); buildEditor(); }
 function undo() { if (hi > 0) { hi--; restore(hist[hi]); } }
 function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi]); } }
 
 /* ---------- rendering ---------- */
-const card = (i, pct) => `<div class="card ${selMode === 'widget' && i === sel ? 'wsel' : ''}"><span class="cid">${ids[i] || ''}</span><span class="clipdot" title="A widget is wider than this column and is clipped"></span><div class="content"><span class="ph">${PH}</span><span class="pct">${pct}%</span></div></div>`;
+const card = (i, pct) => `<div class="card ${selMode === 'widget' && i === sel ? 'wsel' : ''} ${wc[i] ? '' : 'empty'}"><span class="cid">${ids[i] || ''}</span><div class="content">${wc[i] ? `<span class="ph">${PH}</span>` : '<span class="emptyl">Empty column</span>'}<span class="pct">${pct}%</span></div></div>`;
 
 function buildEditor() {
   const n = cols.length;
   $('editor').innerHTML = cols.map((r, i) => `<div class="col ${i === 0 ? 'first' : ''} ${i === n - 1 ? 'last' : ''} ${selMode === 'column' && i === sel ? 'lane' : ''}" data-i="${i}">
-      <div class="coltab" data-i="${i}">${GRIP}Column ${i + 1}</div>${card(i, r)}<div class="coltb"><button title="Add widget" aria-label="Add widget">+</button></div>${i < n - 1 ? `<div class="handle" data-i="${i}"></div>` : ''}</div>`).join('');
-  $('editor').querySelectorAll('.handle').forEach(h => h.addEventListener('pointerdown', startDrag));
+      <div class="coltab" data-i="${i}">${GRIP}Column ${i + 1}</div>${card(i, r)}<div class="coltb"><button title="Add widget" aria-label="Add widget" onclick="addWidget(${i})">+</button></div>${i < n - 1 ? `<div class="handle" data-i="${i}" tabindex="0" role="separator" aria-label="Resize columns ${i + 1} and ${i + 2}"></div>` : ''}</div>`).join('');
+  $('editor').querySelectorAll('.handle').forEach(h => { h.addEventListener('pointerdown', startDrag); h.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); nudge(+h.dataset.i, (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 5 : 1)); }); });
   $('editor').querySelectorAll('.coltab').forEach(t => t.addEventListener('pointerdown', startReorder));
   update();
 }
@@ -268,7 +285,7 @@ function canvasClick(e) {
   if (e.target.closest('.section')) return selectSection();
 }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (selMode === 'widget') selectColumn(sel); else if (selMode === 'column') selectSection(); }
+  if (e.key === 'Escape') { if (!$('scrim').hidden) { closeModal(); return; } closeColMenu(); if (selMode === 'widget') selectColumn(sel); else if (selMode === 'column') selectSection(); }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
 });
 /* Selecting a column scrolls the page so the column is fully visible, left of the inspector */
@@ -287,7 +304,12 @@ function startDrag(e) { e.preventDefault(); e.stopPropagation();
   h.onpointermove = ev => { const d = Math.max(m - a, Math.min(b - m, Math.round((ev.clientX - x0) / u * 100))); cols[i] = a + d; cols[i + 1] = b - d; changed = changed || d !== 0;
     h.dataset.tip = (cols[i] === m || cols[i + 1] === m) ? `Minimum width ${MIN}px` : `${cols[i]}% · ${cols[i + 1]}%`; update(); };
   h.onpointerup = () => { h.onpointermove = h.onpointerup = null; h.classList.remove('drag'); if (changed) commit(); }; }
-function swap(a, b) { [cols[a], cols[b]] = [cols[b], cols[a]]; [ids[a], ids[b]] = [ids[b], ids[a]]; sel = b; }
+function nudge(i, d) { const m = minPct(), a = cols[i] + d, b = cols[i + 1] - d; if (a < m || b < m) return; cols[i] = a; cols[i + 1] = b; update(); commit(); }
+function distributeEvenly() { cols = round100(cols.map(() => 100 / cols.length)); normalize(); update(); commit(); }
+function toggleColMenu(e) { e.stopPropagation(); const m = $('colMenu'); if (!m.hidden) { m.hidden = true; return; } m.innerHTML = cols.map((_, i) => `<button class="${i === sel ? 'on' : ''}" onclick="selectColumn(${i}); closeColMenu()">Column ${i + 1}</button>`).join(''); m.hidden = false; }
+function closeColMenu() { $('colMenu').hidden = true; }
+document.addEventListener('click', e => { if (!e.target.closest('#colMenu')) closeColMenu(); });
+function swap(a, b) { [cols[a], cols[b]] = [cols[b], cols[a]]; [ids[a], ids[b]] = [ids[b], ids[a]]; [wc[a], wc[b]] = [wc[b], wc[a]]; sel = b; }
 function startReorder(e) { e.preventDefault(); e.stopPropagation();
   let cur = +e.currentTarget.dataset.i, x0 = e.clientX, moved = false; selectColumn(cur, false);
   const mv = ev => { const el = $('editor').children[cur]; const w = el.getBoundingClientRect().width + gap, dx = ev.clientX - x0;
@@ -295,12 +317,19 @@ function startReorder(e) { e.preventDefault(); e.stopPropagation();
     else if (dx < -w * .6 && cur > 0) { swap(cur, cur - 1); cur--; x0 -= w; moved = true; buildEditor(); } };
   const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); if (moved) commit(); };
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); }
+function addWidget(i) { wc[i]++; buildEditor(); commit(); }
 function addCol() { if (!canFit(cols.length + 1)) return;
   const m = minPct(cols.length + 1), next = [...cols], share = 100 / (cols.length + 1), short = take(next, share, m);
-  cols = round100([...next, share - short]); ids.push(String.fromCharCode(65 + (Math.max(...ids.map(x => x.charCodeAt(0))) - 64) % 26)); buildEditor(); commit(); }
-function delAt(i) { if (cols.length < 2) return; const [gone] = cols.splice(i, 1); ids.splice(i, 1);
-  const t = cols.reduce((s, r) => s + r, 0); cols = round100(cols.map(r => r + gone * r / t)); normalize(); sel = Math.min(i, cols.length - 1); buildEditor(); commit(); }
-const removeLast = () => delAt(cols.length - 1), delSel = () => { delAt(sel); refreshSel(); };
+  cols = round100([...next, share - short]); ids.push(String.fromCharCode(65 + (Math.max(...ids.map(x => x.charCodeAt(0))) - 64) % 26)); wc.push(0); buildEditor(); commit(); }
+let pendingRm = -1;
+function delAt(i) { if (cols.length < 2) return; if (wc[i] > 0) { askRemove(i); return; } doDelete(i); }
+function doDelete(i) { const [gone] = cols.splice(i, 1); ids.splice(i, 1); wc.splice(i, 1);
+  const t = cols.reduce((s, r) => s + r, 0); cols = round100(cols.map(r => r + gone * r / t)); normalize(); sel = Math.min(i, cols.length - 1); buildEditor(); commit(); refreshSel(); }
+/* A column with widgets asks first. Temporary: remove once Undo reliably restores a removed column. */
+function askRemove(i) { pendingRm = i; $('scrim').hidden = false; $('mOk').focus(); }
+function closeModal() { $('scrim').hidden = true; pendingRm = -1; }
+function confirmRemove() { const i = pendingRm; closeModal(); if (i >= 0) doDelete(i); }
+const removeLast = () => delAt(cols.length - 1), delSel = () => delAt(sel);
 function moveCol(d) { const j = sel + d; if (j < 0 || j >= cols.length) return; swap(sel, j); buildEditor(); commit(); revealCol(sel); }
 function setColW(px) { const n = cols.length; if (n < 2) { updateInspector(); return; }
   const u = usable(), m = minPct(); let t = Math.round(px / u * 100); t = Math.max(m, Math.min(100 - m * (n - 1), t)); const d = t - cols[sel];
@@ -325,20 +354,21 @@ function update() {
 }
 function updateInspector() {
   const n = cols.length, mx = maxCols();
+  $('evenBtn').disabled = Math.max(...cols) - Math.min(...cols) <= 1;
   $('cnt').textContent = n; $('plus').disabled = !canFit(n + 1); $('minus').disabled = n < 2;
   const full = !canFit(n + 1);
-  $('colHelp').className = 'help' + (full ? ' warn' : '');
-  $('colHelp').textContent = full ? `Maximum reached: ${mx} columns fit at this section width. Each column needs at least ${MIN}px.` : `Up to ${mx} columns fit. Each column needs at least ${MIN}px.`;
+  $('colHelp').className = 'help';
+  $('colHelp').textContent = full ? 'Widen the section to add more columns.' : `Up to ${mx} columns fit. Each column needs at least ${MIN}px.`;
   $('gapIn').value = gap; $('wIn').value = sectionW; $('padIn').value = pad; $('vpadIn').value = vpad;
   const G = [0, 20, 40, 80], blocked = G.filter(g => !canFit(n, g));
   document.querySelectorAll('#gapSeg button').forEach((b, i) => { b.disabled = !canFit(n, G[i]); b.classList.toggle('on', G[i] === gap); });
   document.querySelectorAll('#wSeg button').forEach((b, i) => b.classList.toggle('on', [800, 1200, 1600][i] === sectionW));
-  $('gapHelp').className = 'help' + (blocked.length ? ' warn' : '');
+  $('gapHelp').className = 'help';
   $('gapHelp').textContent = blocked.length ? `${blocked.map(g => g + 'px').join(', ')} gap would make a column narrower than ${MIN}px.` : '';
   // Column tab
   $('colTitle').textContent = `Column ${sel + 1} of ${n}`;
-  $('cwIn').value = Math.round(usable() * (cols[sel] || 0) / 100); $('cwPct').textContent = (cols[sel] || 0) + '%';
-  $('cwHelp').textContent = n < 2 ? 'A section needs at least 1 column.' : `Minimum ${MIN}px. The other columns adjust.`;
+  const cpx = Math.round(usable() * (cols[sel] || 0) / 100); $('cwRead').textContent = `${cpx}px · ${cols[sel] || 0}%`;
+  $('cwHelp').textContent = n < 2 ? 'A section needs at least 1 column.' : `Drag a divider to resize. Minimum ${MIN}px.`;
   $('mvL').disabled = sel === 0; $('mvR').disabled = sel === n - 1; $('del').disabled = n < 2;
   $('undoBtn').disabled = hi <= 0; $('redoBtn').disabled = hi >= hist.length - 1;
 }
