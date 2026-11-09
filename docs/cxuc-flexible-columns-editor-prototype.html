@@ -156,11 +156,12 @@
               <span class="stepper"><button id="minus" onclick="removeLast()" aria-label="Remove column"><svg class="i" viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg></button><span class="val" id="cnt"></span><button id="plus" onclick="addCol()" aria-label="Add column"><svg class="i" viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg></button></span>
             </div>
             <div class="help" id="colHelp"></div>
+            <div style="margin-top:16px">Column widths</div>
+            <button class="tbtn wide-btn" id="evenBtn" onclick="distributeEvenly()">Distribute evenly</button>
             <div style="margin-top:16px">Column gap</div>
             <div class="row"><span class="field"><input id="gapIn" value="20" onchange="setGapPx(+this.value)">px</span>
               <span class="seg" id="gapSeg"><button onclick="setGapPx(0)">0</button><button onclick="setGapPx(20)">S</button><button onclick="setGapPx(40)">M</button><button onclick="setGapPx(80)">L</button></span></div>
             <div class="help" id="gapHelp"></div>
-            <button class="tbtn wide-btn" id="evenBtn" onclick="distributeEvenly()">Distribute evenly</button>
           </div>
           <div class="isec"><div class="ihead"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h18v18H3V3Zm2 2v14h14V5H5Zm3 2h5v2H10v3H8V7Z"/></svg></span><span class="t">Size</span><svg class="i chev" viewBox="0 0 24 24"><path d="m7.4 15.4 4.6-4.6 4.6 4.6L18 14l-6-6-6 6 1.4 1.4Z"/></svg></div>
             <div class="label">Section width (maximum)</div>
