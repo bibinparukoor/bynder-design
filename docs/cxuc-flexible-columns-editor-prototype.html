@@ -53,7 +53,7 @@
   .col:hover:not(.lane)::after { right: calc(-1 * var(--gap) / 2 - 1px); } .col:hover:not(.lane).last::after { right: calc(-1 * var(--pad)); }
 
   /* Column tab: proposed hover handle on the column's top edge. Click selects, drag reorders. */
-  .coltab { position: absolute; top: -34px; left: 0; z-index: 4; display: flex; align-items: center; gap: 4px; background: var(--primary); color: #fff; border-radius: 4px 4px 0 0; padding: 3px 10px 3px 6px; font-size: 12px; cursor: grab; opacity: 0; user-select: none; touch-action: none; }
+  .coltab { position: absolute; top: -34px; left: 0; z-index: 4; display: flex; align-items: center; gap: 4px; background: var(--primary); color: #fff; border-radius: 4px 4px 0 0; padding: 3px 10px; font-size: 12px; cursor: pointer; opacity: 0; user-select: none; }
   .coltab svg { width: 14px; height: 14px; }
   .col:hover .coltab, .col.lane .coltab { opacity: 1; }
 
@@ -103,7 +103,7 @@
   .scrim { position: fixed; inset: 0; background: rgba(3,16,40,.5); display: flex; align-items: center; justify-content: center; z-index: 50; } .scrim[hidden] { display: none; }
   .modal { background: var(--surface); border-radius: 8px; width: 520px; max-width: calc(100vw - 32px); padding: 20px 24px; box-shadow: 0 8px 32px rgba(3,16,38,.28); }
   .modal .mh { display: flex; align-items: center; justify-content: space-between; font-size: 16px; } .modal p { margin: 20px 0 28px; color: var(--text-2); } .modal .mf { display: flex; justify-content: flex-end; gap: 8px; }
-  .tbtn.danger { background: #d93a2f; border-color: #d93a2f; color: #fff; }
+  .tbtn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   .colpick { border: 0; background: none; padding: 0; text-align: left; color: var(--text); } .colmenu { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 4px 16px rgba(3,16,38,.16); margin: -4px 0 8px; } .colmenu[hidden] { display: none; }
   .colmenu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px 12px; } .colmenu button:hover, .colmenu button.on { background: var(--hover); }
   .handle:focus-visible::after { opacity: 1; } .handle:focus-visible { outline: none; }
@@ -211,8 +211,8 @@
 <div class="scrim" id="scrim" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <div class="mh"><span id="mTitle">Remove this column?</span><button class="iconbtn" onclick="closeModal()" aria-label="Close"><svg class="i" viewBox="0 0 24 24"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></svg></button></div>
-    <p>Everything in it will be deleted.</p>
-    <div class="mf"><button class="tbtn" onclick="closeModal()">Cancel</button><button class="tbtn danger" id="mOk" onclick="confirmRemove()">Remove column</button></div>
+    <p>All widgets in the column will be deleted.</p>
+    <div class="mf"><button class="tbtn" onclick="closeModal()">Cancel</button><button class="tbtn primary" id="mOk" onclick="confirmRemove()">Remove column</button></div>
   </div>
 </div>
 <script>
@@ -222,7 +222,6 @@ let cols = [34, 33, 33], ids = ['A', 'B', 'C'], wc = [1, 1, 1]; // wc = widgets 
 const $ = id => document.getElementById(id), root = document.documentElement;
 const PH = '<svg viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="16" rx="4"/><rect x="6" y="28" width="36" height="4" rx="2"/><rect x="6" y="36" width="24" height="4" rx="2"/></svg>';
 const WARN = '<svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V9h2v4Z"/></svg>';
-const GRIP = '<svg viewBox="0 0 24 24"><path d="M9 5h2v2H9V5Zm4 0h2v2h-2V5ZM9 11h2v2H9v-2Zm4 0h2v2h-2v-2ZM9 17h2v2H9v-2Zm4 0h2v2h-2v-2Z"/></svg>';
 
 const usable = (n = cols.length, g = gap, w = sectionW, p = pad) => w - 2 * p - (n - 1) * g;
 const minPct = (n = cols.length, g = gap, w = sectionW, p = pad) => Math.ceil(100 * MIN / usable(n, g, w, p));
@@ -255,9 +254,9 @@ const card = (i, pct) => `<div class="card ${selMode === 'widget' && i === sel ?
 function buildEditor() {
   const n = cols.length;
   $('editor').innerHTML = cols.map((r, i) => `<div class="col ${i === 0 ? 'first' : ''} ${i === n - 1 ? 'last' : ''} ${selMode === 'column' && i === sel ? 'lane' : ''}" data-i="${i}">
-      <div class="coltab" data-i="${i}">${GRIP}Column ${i + 1}</div>${card(i, r)}<div class="coltb"><button title="Add widget" aria-label="Add widget" onclick="addWidget(${i})">+</button></div>${i < n - 1 ? `<div class="handle" data-i="${i}" tabindex="0" role="separator" aria-label="Resize columns ${i + 1} and ${i + 2}"></div>` : ''}</div>`).join('');
+      <div class="coltab" data-i="${i}">Column ${i + 1}</div>${card(i, r)}<div class="coltb"><button title="Add widget" aria-label="Add widget" onclick="addWidget(${i})">+</button></div>${i < n - 1 ? `<div class="handle" data-i="${i}" tabindex="0" role="separator" aria-label="Resize columns ${i + 1} and ${i + 2}"></div>` : ''}</div>`).join('');
   $('editor').querySelectorAll('.handle').forEach(h => { h.addEventListener('pointerdown', startDrag); h.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); nudge(+h.dataset.i, (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 5 : 1)); }); });
-  $('editor').querySelectorAll('.coltab').forEach(t => t.addEventListener('pointerdown', startReorder));
+  $('editor').querySelectorAll('.coltab').forEach(t => t.addEventListener('click', e => { e.stopPropagation(); selectColumn(+t.dataset.i); }));
   update();
 }
 
@@ -310,13 +309,6 @@ function toggleColMenu(e) { e.stopPropagation(); const m = $('colMenu'); if (!m.
 function closeColMenu() { $('colMenu').hidden = true; }
 document.addEventListener('click', e => { if (!e.target.closest('#colMenu')) closeColMenu(); });
 function swap(a, b) { [cols[a], cols[b]] = [cols[b], cols[a]]; [ids[a], ids[b]] = [ids[b], ids[a]]; [wc[a], wc[b]] = [wc[b], wc[a]]; sel = b; }
-function startReorder(e) { e.preventDefault(); e.stopPropagation();
-  let cur = +e.currentTarget.dataset.i, x0 = e.clientX, moved = false; selectColumn(cur, false);
-  const mv = ev => { const el = $('editor').children[cur]; const w = el.getBoundingClientRect().width + gap, dx = ev.clientX - x0;
-    if (dx > w * .6 && cur < cols.length - 1) { swap(cur, cur + 1); cur++; x0 += w; moved = true; buildEditor(); }
-    else if (dx < -w * .6 && cur > 0) { swap(cur, cur - 1); cur--; x0 -= w; moved = true; buildEditor(); } };
-  const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); if (moved) commit(); };
-  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); }
 function addWidget(i) { wc[i]++; buildEditor(); commit(); }
 function addCol() { if (!canFit(cols.length + 1)) return;
   const m = minPct(cols.length + 1), next = [...cols], share = 100 / (cols.length + 1), short = take(next, share, m);
