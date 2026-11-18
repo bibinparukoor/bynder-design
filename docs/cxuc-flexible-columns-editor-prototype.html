@@ -186,7 +186,7 @@
             <div class="row"><span class="grow">Width</span><span id="cwRead" class="mono"></span></div>
             <div class="help" id="cwHelp"></div>
             <div class="btnrow"><button class="tbtn" id="mvL" onclick="moveCol(-1)"><svg class="i" viewBox="0 0 24 24"><path d="m15.4 7.4-1.4-1.4-6 6 6 6 1.4-1.4-4.6-4.6 4.6-4.6Z"/></svg>Move left</button><button class="tbtn" id="mvR" onclick="moveCol(1)"><svg class="i" viewBox="0 0 24 24"><path d="m8.6 16.6 4.6-4.6-4.6-4.6L10 6l6 6-6 6-1.4-1.4Z"/></svg>Move right</button></div>
-            <button class="tbtn wide-btn" id="del" onclick="delSel()"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5 11H7v-2h10v2Z"/></svg>Remove Column</button>
+            <button class="tbtn wide-btn" id="del" onclick="delSel()"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5 11H7v-2h10v2Z"/></svg>Remove column</button>
           </div>
         </div>
 
@@ -302,7 +302,8 @@ function startDrag(e) { e.preventDefault(); e.stopPropagation();
   const h = e.currentTarget, i = +h.dataset.i, x0 = e.clientX, a = cols[i], b = cols[i + 1], u = usable(), m = minPct();
   h.setPointerCapture(e.pointerId); h.classList.add('drag'); let changed = false;
   h.onpointermove = ev => { const d = Math.max(m - a, Math.min(b - m, Math.round((ev.clientX - x0) / u * 100))); cols[i] = a + d; cols[i + 1] = b - d; changed = changed || d !== 0;
-    h.dataset.tip = (cols[i] === m || cols[i + 1] === m) ? `Minimum width ${MIN}px` : `${cols[i]}% · ${cols[i + 1]}%`; update(); };
+    const px = k => Math.round(usable() * cols[k] / 100), atMin = cols[i] === m ? i : cols[i + 1] === m ? i + 1 : -1;
+    h.dataset.tip = atMin >= 0 ? `Minimum width: ${MIN} px · ${cols[atMin]}%` : `${px(i)} px · ${cols[i]}% | ${px(i + 1)} px · ${cols[i + 1]}%`; update(); };
   h.onpointerup = () => { h.onpointermove = h.onpointerup = null; h.classList.remove('drag'); if (changed) commit(); }; }
 function nudge(i, d) { const m = minPct(), a = cols[i] + d, b = cols[i + 1] - d; if (a < m || b < m) return; cols[i] = a; cols[i + 1] = b; update(); commit(); }
 function distributeEvenly() { cols = round100(cols.map(() => 100 / cols.length)); normalize(); update(); commit(); }
@@ -315,10 +316,10 @@ function addCol() { if (!canFit(cols.length + 1)) return;
   const m = minPct(cols.length + 1), next = [...cols], share = 100 / (cols.length + 1), short = take(next, share, m);
   cols = round100([...next, share - short]); ids.push(String.fromCharCode(65 + (Math.max(...ids.map(x => x.charCodeAt(0))) - 64) % 26)); wc.push(0); buildEditor(); commit(); }
 let pendingRm = -1;
-function delAt(i) { if (cols.length < 2) return; if (wc[i] > 0) { askRemove(i); return; } doDelete(i); }
+function delAt(i) { if (cols.length < 2) return; askRemove(i); }
 function doDelete(i) { const [gone] = cols.splice(i, 1); ids.splice(i, 1); wc.splice(i, 1);
   const t = cols.reduce((s, r) => s + r, 0); cols = round100(cols.map(r => r + gone * r / t)); normalize(); sel = Math.min(i, cols.length - 1); buildEditor(); commit(); refreshSel(); }
-/* A column with widgets asks first. Temporary: remove once Undo reliably restores a removed column. */
+/* Removing a column always asks first. */
 function askRemove(i) { pendingRm = i; $('scrim').hidden = false; $('mOk').focus(); }
 function closeModal() { $('scrim').hidden = true; pendingRm = -1; }
 function confirmRemove() { const i = pendingRm; closeModal(); if (i >= 0) doDelete(i); }
@@ -340,9 +341,9 @@ function update() {
   const n = cols.length, wide = sectionW + 80 > visW();
   $('section').style.width = sectionW + 'px';
   /* Only signal: the Inline banner. The page itself scrolls sideways, as it does today. */
-  $('bannerSlot').innerHTML = wide ? `<div class="banner" role="status">${WARN}<div><div class="bt">Wider than your screen</div><div class="bd">Set to ${sectionW}px, screen shows ${visW()}px</div></div></div>` : '';
+  $('bannerSlot').innerHTML = wide ? `<div class="banner" role="status">${WARN}<div><div class="bt">Wider than your screen</div><div class="bd">Set to ${sectionW} px, screen shows ${visW()} px</div></div></div>` : '';
   [...$('editor').children].forEach((el, i) => { el.style.flexGrow = cols[i];
-    el.querySelector('.pct').textContent = `${cols[i]}% · ${Math.round(usable() * cols[i] / 100)}px`; });
+    el.querySelector('.pct').textContent = `${cols[i]}% · ${Math.round(usable() * cols[i] / 100)} px`; });
   updateInspector();
 }
 function updateInspector() {
@@ -351,17 +352,17 @@ function updateInspector() {
   $('cnt').textContent = n; $('plus').disabled = !canFit(n + 1); $('minus').disabled = n < 2;
   const full = !canFit(n + 1);
   $('colHelp').className = 'help';
-  $('colHelp').textContent = full ? 'Widen the section to add more columns.' : `Up to ${mx} columns fit. Each column needs at least ${MIN}px.`;
+  $('colHelp').textContent = full ? 'Widen the section to add more columns.' : `Up to ${mx} columns fit. Each column needs at least ${MIN} px.`;
   $('gapIn').value = gap; $('wIn').value = sectionW; $('padIn').value = pad; $('vpadIn').value = vpad;
   const G = [0, 20, 40, 80], blocked = G.filter(g => !canFit(n, g));
   document.querySelectorAll('#gapSeg button').forEach((b, i) => { b.disabled = !canFit(n, G[i]); b.classList.toggle('on', G[i] === gap); });
   document.querySelectorAll('#wSeg button').forEach((b, i) => b.classList.toggle('on', [800, 1200, 1600][i] === sectionW));
   $('gapHelp').className = 'help';
-  $('gapHelp').textContent = blocked.length ? `${blocked.map(g => g + 'px').join(', ')} gap would make a column narrower than ${MIN}px.` : '';
+  $('gapHelp').textContent = blocked.length ? `${blocked.map(g => g + ' px').join(', ')} gap would make a column narrower than ${MIN} px.` : '';
   // Column tab
   $('colTitle').textContent = `Column ${sel + 1} of ${n}`;
-  const cpx = Math.round(usable() * (cols[sel] || 0) / 100); $('cwRead').textContent = `${cpx}px · ${cols[sel] || 0}%`;
-  $('cwHelp').textContent = n < 2 ? 'A section needs at least 1 column.' : `Drag a divider to resize. Minimum ${MIN}px.`;
+  const cpx = Math.round(usable() * (cols[sel] || 0) / 100); $('cwRead').textContent = `${cpx} px · ${cols[sel] || 0}%`;
+  $('cwHelp').textContent = n < 2 ? 'A section needs at least 1 column.' : `Drag a divider to resize. Minimum ${MIN} px.`;
   $('mvL').disabled = sel === 0; $('mvR').disabled = sel === n - 1; $('del').disabled = n < 2;
   $('undoBtn').disabled = hi <= 0; $('redoBtn').disabled = hi >= hist.length - 1;
 }
