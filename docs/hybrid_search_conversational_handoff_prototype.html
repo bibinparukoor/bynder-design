@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid Search: Spotlight to conversation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Values below come straight from the Figma frames (Hybrid Search file, Future section) via get_design_context */
+:root{
+  --text:#212c40; --text-ai:rgba(3,16,38,.88); --muted:#4f5867; --disabled:#8b919b; --ph:rgba(3,16,38,.46);
+  --primary:#126dfe;
+  --surface:#fff; --secondary:#f8f8f9; --tertiary:#edeef0; --info:#ecf3ff;
+  --chip:rgba(3,16,38,.05); --divider:rgba(3,16,38,.1); --stroke:rgba(3,16,38,.17);
+  --badge-fill:rgba(3,16,38,.07); --blurred:rgba(3,16,38,.46);
+  --purple-50:#f3f2fd; --purple-500:#7064e4;
+  --r-base:6px; --r-l:8px; --r-xl:12px; --r-xxl:16px; --r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',sans-serif;color:var(--text);background:#e8e9eb;display:flex;flex-direction:column;font-size:14px;line-height:20px;font-weight:400}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
+img{display:block}
+.ic{flex-shrink:0;display:block}
+
+/* Prototype control bar (not product UI) */
+.proto{height:48px;background:#031028;color:#d5d7da;display:flex;align-items:center;gap:16px;padding:0 20px;font-size:13px;flex-shrink:0}
+.proto b{color:#fff;font-weight:600}
+.proto .path{flex:1;color:#b8bcc2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proto .path em{font-style:normal;color:#fff}
+.proto button{height:28px;padding:0 12px;border-radius:var(--r-base);background:rgba(255,255,255,.1);color:#fff;font-size:13px}
+.proto button:hover{background:rgba(255,255,255,.2)}
+
+.app{flex:1;display:flex;min-height:0;background:#fff;position:relative;overflow:hidden}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.scroll{flex:1;overflow:auto}
+
+/* Buttons (DS Button: clean / secondary / primary) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:0 8px;border-radius:var(--r-base);font-size:14px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.btn:hover{background:var(--chip)}
+.btn .lbl{padding:0 4px}
+.btn .dd{width:16px;display:flex;align-items:center;justify-content:center}
+.btn.m{min-height:40px;padding:0 12px;gap:4px}
+.btn.m .lbl{font-size:16px}
+.btn.sec{background:rgba(3,16,38,.03);border:1px solid var(--stroke);color:var(--text)}
+.btn.sec:hover{background:rgba(3,16,38,.07)}
+.btn.pri{background:var(--primary);color:#fff}
+.btn.pri:hover{background:#0f5fe0}
+
+/* Header */
+.hdr{background:var(--surface);box-shadow:0 1px 0 rgba(0,0,0,.1),0 2px 6px -1px rgba(0,34,51,.15);position:relative;z-index:3;flex-shrink:0;overflow:hidden}
+.mh{display:flex;align-items:center;padding:12px 48px;height:64px}
+.mh .sec-l{flex:1 1 0;min-width:0}
+.mh .sec-r{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 8px}
+.search{flex:0 1 600px;min-width:180px;height:40px;border:1px solid var(--stroke);border-radius:var(--r-xl);display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;cursor:text;background:#fff}
+.search:hover{border-color:rgba(3,16,38,.35)}
+.search .q{flex:1;min-width:0;font-size:16px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.search .q.ph{color:var(--disabled)}
+.aib{display:inline-flex;align-items:center;gap:2px;min-height:32px;padding:0 8px;border-radius:var(--r-xxl);background:var(--purple-50);color:var(--purple-500);font-size:14px;white-space:nowrap;flex-shrink:0}
+.aib span{padding:0 4px}
+.bell{position:relative}
+.bell > img{position:absolute;right:8px;top:8px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;flex-shrink:0}
+.uname{font-size:14px;line-height:21px;white-space:nowrap;padding:8px 0}
+.nr{display:flex;align-items:center;padding:10px 48px;gap:10px}
+.nr .l{display:flex;align-items:center;flex-shrink:0}
+.nr .r{flex:1;display:flex;justify-content:flex-end}
+.logo{width:111px;height:40px}
+.nav-on{background:rgba(3,16,38,.05);color:var(--text)}
+.nav-on .lbl{color:var(--text)}
+.fr{display:flex;align-items:center;padding:10px 48px;gap:10px}
+.fr .l{display:flex;align-items:center;flex-shrink:0}
+.fr .r{flex:1;display:flex;justify-content:flex-end}
+.active{display:flex;align-items:center;gap:12px;padding:0 48px;height:0;overflow:hidden;transition:height .2s;flex-shrink:0}
+.active.show{height:48px}
+.fchip{display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:var(--r-pill);background:var(--chip);font-size:14px;white-space:nowrap}
+.active .acts{display:flex;gap:8px;margin-left:4px}
+.active .acts .btn{min-height:30px;border:1px solid transparent;color:var(--muted)}
+.active .acts .btn.sec{border-color:var(--stroke)}
+
+/* View options */
+.vo{display:flex;align-items:center;gap:12px;padding:24px 48px}
+.vo .a{flex:1;display:flex;align-items:center;gap:12px;min-width:0}
+.vo .b{flex:1;display:flex;align-items:center;justify-content:flex-end;gap:12px}
+.counter{display:flex}
+.counter .n{background:var(--primary);color:#fff;min-height:32px;padding:0 8px;display:flex;align-items:center;border-radius:var(--r-base) 0 0 var(--r-base);font-size:14px}
+.counter .n span{padding:0 4px}
+.counter .rs{border-radius:0 var(--r-base) var(--r-base) 0}
+.vtog{display:flex;height:32px;border:1px solid var(--stroke);border-radius:var(--r-base);overflow:hidden;flex-shrink:0}
+.vtog div{display:flex;align-items:center;padding:0 6px;height:100%}
+.vtog .on{background:var(--primary)}
+
+/* Content */
+.content{padding:0 120px 48px;transition:padding .3s}
+.panel-open .content{padding-inline:40px}
+.soft{display:none;align-items:center;gap:12px;padding:12px 16px;background:var(--info);border-radius:var(--r-l);margin:0 0 4px}
+.soft.show{display:flex}
+.soft .t{flex:1;font-size:14px}
+.hd{padding:10px 0 4px;font-size:14px;line-height:20px}
+.hd b{font-weight:600}
+.hd2{padding:12px 0;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,248px);gap:16px;justify-content:start}
+.card{background:#fff;border:1px solid var(--stroke);border-radius:var(--r-base);box-shadow:0 0 1px rgba(3,16,38,.1),0 1px 4px -1px rgba(3,16,38,.1);overflow:hidden;display:flex;flex-direction:column;width:248px;cursor:pointer}
+.card .fr2{height:160px;position:relative;background:var(--secondary);overflow:hidden;flex-shrink:0}
+.card .fr2 img.ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.card.small{height:228px}
+.card .ov{position:absolute;inset:0;padding:12px;display:flex;flex-direction:column;justify-content:space-between;z-index:2}
+.card .act{display:flex;justify-content:space-between;opacity:0;transition:opacity .15s}
+.card:hover .act{opacity:1}
+.cbtn{height:32px;padding:0 8px;border-radius:5px;background:rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(0,34,51,.1);display:flex;align-items:center}
+.csel{width:32px;height:32px;border-radius:16px;border:2px solid rgba(255,255,255,.8)}
+.ext{align-self:flex-end;margin-left:auto;background:var(--blurred);backdrop-filter:blur(12px);color:#fff;font-size:12px;line-height:20px;padding:2px 8px;border-radius:5px}
+.card .ch{padding:12px 16px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.card .ct{font-size:16px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .cd{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .ci{border-top:1px solid var(--divider);padding:12px 16px;display:flex;flex-direction:column;gap:16px}
+.card .ci .mp{color:var(--muted)}
+.card .ci .mn{font-size:16px}
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border:1px solid var(--stroke);border-radius:var(--r-pill);font-size:12px;line-height:20px;background:#fff;white-space:nowrap;backdrop-filter:blur(12px)}
+.pill span{padding:0 4px}
+.badges{display:flex;gap:8px}
+
+/* Spotlight */
+.scrim{position:absolute;inset:0;background:rgba(3,16,38,.22);z-index:20;display:none}
+.scrim.show{display:block}
+.spot{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:640px;max-width:calc(100% - 24px);background:#fff;border-radius:var(--r-xxl);box-shadow:0 0 0 1px rgba(3,16,38,.1),0 2px 8px -1px rgba(3,16,38,.15);z-index:21;display:none;overflow:hidden}
+.spot.show{display:block}
+.s-in{height:44px;padding:8px 12px;display:flex;align-items:center;gap:8px}
+.s-in input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:16px;line-height:20px;color:var(--muted);background:transparent;padding:2px 4px}
+.s-in input::placeholder{color:var(--disabled)}
+.s-ch{height:40px;padding:0 16px;display:flex;align-items:center;gap:10px}
+.s-ch .l{flex:1;display:flex;gap:10px;align-items:center;min-width:0}
+.chip{display:inline-flex;align-items:center;min-height:32px;padding:0 8px;border-radius:var(--r-pill);background:var(--chip);font-size:14px;white-space:nowrap;flex-shrink:0}
+.chip span{padding:0 4px}
+.chip.cur{background:var(--info);color:var(--primary)}
+.div{padding:8px 0}.div i{display:block;height:1px;background:var(--divider)}
+.dsec{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.dsec .t{flex:1;font-weight:500;color:var(--muted)}
+.li{display:flex;align-items:center;gap:12px;height:56px;padding:8px 16px;border-radius:var(--r-l);cursor:pointer}
+.li.act{background:rgba(3,16,38,.06)}
+.li .th{width:40px;height:40px;border:1px solid var(--divider);border-radius:var(--r-base);overflow:hidden;flex-shrink:0;background:#d5d7da}
+.li .th img{width:100%;height:100%;object-fit:cover}
+.li .tx{flex:1;min-width:0}
+.li .tx .a{font-size:16px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .tx .b{color:var(--disabled);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bdg{display:inline-flex;align-items:center;padding:2px 4px;border-radius:5px;font-size:12px;line-height:20px;backdrop-filter:blur(12px);white-space:nowrap}
+.bdg span{padding:0 4px}
+.bdg.o{border:1px solid var(--stroke)}
+.bdg.f{background:var(--badge-fill)}
+.list{padding-bottom:12px}
+.rw{display:flex;align-items:center;gap:12px;height:56px;padding:0 16px}
+.rw .lb{padding:12px 16px 8px 0;font-weight:500;color:var(--muted);white-space:nowrap}
+.rw .cs{flex:1;display:flex;gap:12px;align-items:center;min-width:0;overflow:hidden}
+.ask{height:48px;display:flex;align-items:center;padding:8px 16px}
+.askb{display:inline-flex;align-items:center;gap:2px;min-height:32px;padding:0 8px;border-radius:var(--r-base);font-size:14px;color:var(--muted);cursor:pointer}
+.askb span{padding:0 4px}
+.askb.act,.askb:hover{background:rgba(3,16,38,.08)}
+.sf{height:48px;background:var(--secondary);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(2px)}
+.sf .k{display:flex;align-items:center;gap:6px}
+.sf .tt{font-size:12px;line-height:normal;color:var(--disabled);white-space:pre}
+.key{min-width:24px;height:24px;padding:2px 4px;display:flex;align-items:center;justify-content:center;background:var(--badge-fill);border-bottom:1px solid var(--stroke);border-radius:var(--r-base);font-size:12px;font-weight:500;color:var(--text)}
+.rec{padding:12px 16px 8px;font-weight:500;color:var(--muted)}
+.rr{display:flex;align-items:center;gap:8px;height:44px;padding:0 16px;cursor:pointer}.rr:hover{background:rgba(3,16,38,.06)}
+
+/* Assistant panel */
+.panel{width:0;flex-shrink:0;overflow:hidden;transition:width .3s ease;background:var(--surface)}
+.panel.open{width:600px}
+.pin{width:600px;height:100%;display:flex;flex-direction:column;border-left:1px solid var(--divider)}
+.ph-h{padding:24px;border-bottom:1px solid var(--divider);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--surface)}
+.ph-h .t{flex:1;font-size:16px;color:var(--text-ai);line-height:20px}
+.chat{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:24px 24px 12px;overflow:auto}
+.chat .push{margin-top:auto;flex-shrink:0}
+.uc{display:flex;justify-content:flex-end;padding-left:88px;flex-shrink:0}
+.uc .bub{background:var(--tertiary);border-radius:var(--r-xl);padding:12px 16px;font-size:16px;line-height:1.5;color:var(--text-ai);white-space:pre-wrap;word-break:break-word}
+.uc.sys .bub{background:#e3f6e8;color:#1a6b34}
+.aia{display:flex;flex-direction:column;gap:8px;padding-right:48px;flex-shrink:0}
+.thk{display:flex;align-items:center;padding-right:88px}
+.thk .av{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.thk .sh{display:flex;align-items:center;gap:4px;min-height:40px;padding:0 12px;border-radius:var(--r-base);font-size:16px;color:rgba(3,16,38,.7);cursor:pointer}
+.thk .sh:hover{background:var(--chip)}
+.thk .sh span{padding:0 4px}
+.thk .ts{display:flex;align-items:center;gap:8px;padding:0 12px;font-size:16px;color:rgba(3,16,38,.7)}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(3,16,38,.12);border-top-color:rgba(3,16,38,.7);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lead{padding-left:56px;font-size:16px;line-height:1.5;color:var(--text-ai);border-radius:var(--r-l)}
+.resp{padding-left:56px;display:flex;flex-direction:column;gap:2px}
+.rc{background:var(--info);padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.rc .fcs{display:flex;flex-wrap:wrap;gap:8px}
+.cch{display:inline-flex;align-items:center;min-height:32px;padding:0 8px;border-radius:var(--r-pill);background:var(--chip);font-size:14px;white-space:nowrap}
+.cch span{padding:0 4px}
+.cch .x{width:20px;display:flex;align-items:center}
+.cch .x button{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.cch .x button:hover{background:rgba(3,16,38,.08)}
+.thm{display:flex;gap:8px}
+.thm img{width:104px;height:78px;border-radius:4px;object-fit:cover}
+.rc .why{padding:8px 0;font-size:16px;line-height:1.5;color:var(--text)}
+.th-tool{background:var(--info);display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:4px 16px;border-radius:0 0 12px 12px}
+.act-row{display:flex;align-items:center;padding-left:56px}
+.act-row .btn,.th-tool .btn{min-height:40px;padding:0 12px}
+.btn.hov{background:var(--chip)}
+.pfoot{padding:12px 24px 8px;display:flex;flex-direction:column;gap:12px;flex-shrink:0;background:var(--surface)}
+.ibox{background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-xl);box-shadow:0 2px 4px -1px rgba(3,16,38,.1);min-height:156px;max-height:218px;padding:8px 0;display:flex;flex-direction:column;overflow:hidden}
+.ibox:focus-within{border-color:var(--primary);box-shadow:0 0 0 2px rgba(18,109,254,.2)}
+.ibox .ta{padding:12px;display:flex;flex-direction:column;flex:1;min-height:0}
+.ibox .ctx{height:32px;padding:0 12px;display:flex}
+.ibox textarea{flex:1;min-height:68px;border:0;outline:0;resize:none;font:inherit;font-size:16px;line-height:1.5;color:var(--text);background:transparent;padding:8px 16px}
+.ibox textarea::placeholder{color:var(--ph)}
+.ibox .ft{padding:8px 16px;display:flex;justify-content:flex-end;align-items:center}
+.send{display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 8px;border:2px solid transparent;border-radius:var(--r-pill);background:var(--primary)}
+.send:hover{background:#0f5fe0}
+.send:disabled{background:rgba(3,16,38,.15);cursor:default}
+.helpt{padding:8px 0;font-size:12px;line-height:1.5;text-align:center;color:var(--text-ai)}
+.helpt a{color:var(--primary);cursor:pointer}
+.intro{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.intro h2{font-size:20px;line-height:28px;font-weight:600;color:var(--text-ai)}
+.intro .sub{color:var(--muted);font-size:16px;line-height:24px}
+.sugs{margin-top:auto;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.sug{display:inline-flex;align-items:center;min-height:40px;padding:0 16px;gap:8px;border-radius:var(--r-pill);background:var(--chip);font-size:16px;white-space:nowrap}
+.sug:hover{background:rgba(3,16,38,.09)}
+
+/* Modal + toast */
+.modalbg{position:fixed;inset:0;background:rgba(3,16,38,.45);display:none;align-items:center;justify-content:center;z-index:50}
+.modalbg.show{display:flex}
+.modal{width:520px;background:#fff;border-radius:var(--r-xl);box-shadow:0 12px 40px rgba(3,16,38,.3)}
+.modal .mhd{height:72px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.modal .mc{padding:8px 24px 16px;display:flex;flex-direction:column;gap:12px}
+.modal textarea{border:1px solid var(--stroke);border-radius:var(--r-l);padding:12px;font:inherit;height:96px;resize:none;outline:0}
+.modal textarea:focus{border-color:var(--primary)}
+.modal .mf{padding:16px 24px 24px;display:flex;justify-content:flex-end;gap:8px}
+.toast{position:fixed;left:50%;bottom:32px;transform:translate(-50%,20px);background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-l);opacity:0;pointer-events:none;transition:.25s;z-index:60}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <b>Hybrid Search prototype</b>
+  <span class="path" id="path"></span>
+  <button id="startSpot">Start from Spotlight</button>
+  <button id="startSerp">Start from SERP</button>
+</div>
+
+<div class="app" id="app">
+  <div class="main" id="main">
+    <header class="hdr">
+      <div class="mh">
+        <div class="sec-l"></div>
+        <div class="search" id="searchBar" tabindex="0" role="button" aria-label="Open Spotlight search">
+          <span data-ic="search"></span>
+          <span class="q ph" id="serpQ">Search</span>
+          <span class="aib"><span data-ic="sparkles"></span><span>AI Search</span></span>
+        </div>
+        <div class="sec-r">
+          <div class="bell"><button class="btn m" aria-label="Notifications"><span data-ic="notifications"></span></button><i data-ic="dot" data-s="8"></i></div>
+          <div class="avatar">B</div>
+          <div class="uname">Bibin Thomas</div>
+          <button class="btn m" aria-label="Settings"><span data-ic="settings"></span></button>
+        </div>
+      </div>
+      <div class="nr">
+        <div class="l">
+          <img class="logo" src="hybrid_prototype_assets/icons/logo.svg" alt="Bynder">
+          <button class="btn m"><span class="lbl">Home</span></button>
+          <button class="btn m nav-on"><span class="lbl">Assets</span></button>
+          <button class="btn m"><span class="lbl">Collections</span></button>
+          <button class="btn m"><span class="lbl">Guidelines</span></button>
+          <button class="btn m"><span class="lbl">Studio</span></button>
+          <button class="btn m"><span class="lbl">Workflow</span></button>
+          <button class="btn m"><span class="lbl">Content Workflow</span></button>
+          <button class="btn m"><span data-ic="more-vertical"></span><span class="lbl">More</span><span class="dd" data-ic="caret"></span></button>
+        </div>
+        <div class="r"><button class="btn m pri"><span data-ic="upload"></span><span class="lbl">Upload media</span></button></div>
+      </div>
+      <div class="fr">
+        <div class="l">
+          <button class="btn"><span data-ic="placeholder"></span><span class="lbl">Smart filter</span><span class="dd" data-ic="caret"></span></button>
+          <button class="btn"><span data-ic="placeholder"></span><span class="lbl">Smart filter</span><span class="dd" data-ic="caret"></span></button>
+          <button class="btn"><span data-ic="adjust"></span><span class="lbl">Advanced</span><span class="dd" data-ic="caret"></span></button>
+          <button class="btn"><span data-ic="color-picker"></span><span class="lbl">Color</span><span class="dd" data-ic="caret"></span></button>
+          <button class="btn"><span data-ic="tag"></span><span class="lbl">Tags</span><span class="dd" data-ic="caret"></span></button>
+          <button class="btn"><span data-ic="arrow-left"></span></button>
+          <button class="btn"><span data-ic="arrow-right"></span></button>
+        </div>
+        <div class="r"><button class="btn"><span data-ic="filter-funnel"></span><span class="lbl">Saved filters</span><span class="dd" data-ic="caret"></span></button></div>
+      </div>
+      <div class="active" id="activeRow"></div>
+    </header>
+
+    <div class="scroll">
+      <div class="vo">
+        <div class="a">
+          <div class="counter"><div class="n"><span>98</span></div><button class="btn sec" style="border-radius:0 6px 6px 0"><span class="lbl"><b style="font-weight:500;font-size:16px" id="cnt">87208</b> results</span><span class="dd" data-ic="caret"></span></button></div>
+          <button class="btn sec"><span class="lbl">Order by relevance</span><span class="dd" data-ic="caret"></span></button>
+          <button class="btn sec"><span data-ic="sort"></span></button>
+        </div>
+        <div class="b">
+          <button class="btn sec" id="aiBtn"><span data-ic="single-sparkle"></span><span class="lbl">AI Assistant</span></button>
+          <button class="btn sec"><span data-ic="copy"></span></button>
+          <button class="btn"><span data-ic="zoom"></span></button>
+          <div class="vtog"><div class="on"><span data-ic="grid"></span></div><div><span data-ic="list"></span></div></div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="soft" id="soft">
+          <span data-ic="single-sparkle"></span>
+          <span class="t">Not what you expected? Describe it and the assistant will refine this search.</span>
+          <button class="btn sec" id="softBtn"><span class="lbl">Refine with AI Assistant</span></button>
+        </div>
+        <div class="hd" id="heading"></div>
+        <div class="hd2" id="gridLabel">Top assets</div>
+        <div class="grid" id="gridTop"></div>
+        <div class="hd2" id="gridLabel2" style="display:none">More results</div>
+        <div class="grid" id="gridMore"></div>
+      </div>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+    <div class="spot" id="spot" role="dialog" aria-label="Spotlight search"></div>
+  </div>
+  <aside class="panel" id="panel" aria-label="AI Assistant"><div class="pin" id="pin"></div></aside>
+</div>
+
+<div class="modalbg" id="modalbg"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const A = 'hybrid_prototype_assets/';
+const ic = (n,s=24)=>`<img class="ic" src="${A}icons/${n}.svg" width="${s}" height="${s}" alt="">`;
+document.querySelectorAll('[data-ic]').forEach(el=>{ el.outerHTML = ic(el.dataset.ic, +el.dataset.s||24); });
+
+/* Real images exported from the Figma frames */
+const IMGS = [
+ {src:'top1',  t:'Red slingback heels',            tags:'shoes heels red slingback flatlay campaign', coll:'Spring Summer 26'},
+ {src:'top2',  t:'Tying red ankle straps',         tags:'shoes heels red legs studio',                coll:'Spring Summer 26'},
+ {src:'top3',  t:'Red strappy heels, white socks', tags:'shoes heels red socks studio',               coll:'Spring Summer 26'},
+ {src:'top4',  t:'Pink knit, yellow slingbacks',   tags:'shoes pink knit yellow flatlay',             coll:'Spring Summer 26'},
+ {src:'more1', t:'Yellow slingbacks, pearls',      tags:'shoes yellow accessories pearls flatlay',    coll:'Spring Summer 26'},
+ {src:'more2', t:'Lilac knit with blue jacket',    tags:'jacket blue knit hat woman studio',          coll:'Autumn Winter 26'},
+ {src:'more3', t:'Blue puffer jacket',             tags:'jacket puffer blue coat red backdrop',       coll:'Autumn Winter 26'},
+ {src:'more4', t:'Blue jacket, fluffy hat',        tags:'jacket blue hat woman winter',               coll:'Autumn Winter 26'},
+ {src:'more5', t:'Pink puffer, smiling',           tags:'jacket puffer pink woman winter',            coll:'Autumn Winter 26'},
+ {src:'more6', t:'Pink puffer, full length',       tags:'jacket puffer pink woman full length',       coll:'Autumn Winter 26'},
+ {src:'more7', t:'Pink and teal winter looks',     tags:'jacket puffer pink teal two women winter',   coll:'Autumn Winter 26'},
+ {src:'more8', t:'Beanie portrait',                tags:'beanie portrait orange winter hat woman',    coll:'Autumn Winter 26'}
+].map((x,i)=>({...x,i,url:A+x.src+'.jpg'}));
+const DETAIL = ['Campaign','Product shoot','Lookbook','Social'];
+
+const S = { q:'', serpQ:'', panelOpen:false, ctx:null, thread:[], filters:[], count:87208, match:'both', convFilters:null, uid:0, busy:false, spotIdx:-1 };
+const TOTAL=87208;
+function baseCount(q){ if(!q) return TOTAL; return 40 + ((q.length*37 + q.toLowerCase().charCodeAt(0)) % 160); }
+function rank(q){
+  const w = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if(!w.length) return IMGS.slice();
+  return IMGS.map(x=>({x,s:w.reduce((a,t)=>a+((x.t+' '+x.tags).toLowerCase().includes(t)?1:0),0)})).sort((a,b)=>b.s-a.s||a.x.i-b.x.i).map(o=>o.x);
+}
+function setPath(t){ $('#path').innerHTML = t; }
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('show'),1800); }
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const badgeHtml = (l)=>`<span class="pill"><span>${l}</span></span>`;
+
+/* ---------- SERP ---------- */
+function cardTop(x,k){
+  let b='';
+  if(S.serpQ){ if(S.match==='visual') b=badgeHtml('Visual'); else if(S.match==='metadata') b=badgeHtml('Metadata'); else b = (k%3===1?badgeHtml('Visual')+badgeHtml('Metadata'):k%3===2?badgeHtml('Metadata'):badgeHtml('Visual')); }
+  return `<div class="card"><div class="fr2"><img class="ph" src="${x.url}" alt="${esc(x.t)}"><div class="ov"><div class="act"><div class="cbtn">${ic('card-more')}</div><div class="csel"></div></div><span class="ext">JPG</span></div></div>
+  <div class="ch"><div class="ct">${esc(x.t)}</div><div class="cd">${DETAIL[x.i%4]} · ${x.coll.replace('Spring Summer','SS').replace('Autumn Winter','AW')}</div></div>
+  <div class="ci"><div><div class="mp">Collection</div><div class="mn">${x.coll}</div></div>${b?`<div class="badges">${b}</div>`:''}</div></div>`;
+}
+function cardSmall(x){
+  return `<div class="card small"><div class="fr2" style="flex:1;height:auto"><img class="ph" src="${x.url}" alt="${esc(x.t)}"><div class="ov"><div class="act"><div class="cbtn">${ic('card-more')}</div><div class="csel"></div></div></div></div>
+  <div class="ch"><div class="ct">${esc(x.t)}</div><div class="cd">${DETAIL[x.i%4]} · ${x.coll.replace('Spring Summer','SS').replace('Autumn Winter','AW')}</div></div></div>`;
+}
+function renderSerp(){
+  const q=S.serpQ; const el=$('#serpQ'); el.textContent=q||'Search'; el.classList.toggle('ph',!q);
+  $('#cnt').textContent = S.count.toLocaleString('en-US').replace(/,/g,'');
+  $('#heading').innerHTML = q ? 'Search results for <b>“'+esc(q)+'”</b>' : '';
+  $('#soft').classList.toggle('show', !!q && !S.filters.length);
+  const list = rank(q); const n = Math.min(S.count,12);
+  const shown = list.slice(0,n);
+  if(q){
+    $('#gridLabel').textContent='Top assets'; $('#gridTop').innerHTML = shown.slice(0,4).map((x,k)=>cardTop(x,k)).join('');
+    const more = shown.slice(4); $('#gridLabel2').style.display=more.length?'block':'none'; $('#gridMore').innerHTML = more.map(cardSmall).join('');
+  } else {
+    $('#gridLabel').textContent='All assets'; $('#gridTop').innerHTML = shown.slice(0,4).map((x,k)=>cardTop(x,k)).join('');
+    const more = shown.slice(4); $('#gridLabel2').style.display=more.length?'block':'none'; $('#gridMore').innerHTML = more.map(cardSmall).join('');
+  }
+  const ar=$('#activeRow');
+  if(S.filters.length){ ar.innerHTML = S.filters.map(f=>`<span class="fchip">${esc(f)}</span>`).join('')+`<div class="acts"><button class="btn" id="clearF"><span class="lbl">Clear all</span></button><button class="btn sec"><span class="lbl">Save filters</span></button></div>`; ar.classList.add('show');
+    $('#clearF').onclick=()=>{ S.filters=[]; S.count=baseCount(S.serpQ); S.match='both'; renderSerp(); toast('Filters cleared'); };
+  } else { ar.classList.remove('show'); ar.innerHTML=''; }
+  $('#aiBtn').classList.toggle('hov', S.panelOpen);
+  $('#app').classList.toggle('panel-open', S.panelOpen);
+}
+function goSerp(q){ S.serpQ=q.trim(); S.filters=[]; S.match='both'; S.count=baseCount(S.serpQ); closeSpotlight(); renderSerp(); }
+
+/* ---------- Spotlight ---------- */
+function renderSpotlight(){
+  const q=S.q.trim(); const n=baseCount(q); const sp=$('#spot'); const ASK=5;
+  const res = rank(q).slice(0,5);
+  let body='';
+  if(!q){
+    body = `<div class="rec">Recent searches</div>`+['jacket','red heels','winter beanie'].map(r=>`<div class="rr" data-recent="${r}">${ic('search',20)}<span>${r}</span></div>`).join('');
+  } else {
+    body = `<div class="div"><i></i></div>
+    <div class="dsec"><span class="t">Top Assets</span><button class="btn" data-viewall><span class="lbl">View all (${n})</span></button></div>
+    <div class="list">${res.map((x,i)=>`<div class="li ${S.spotIdx===i?'act':''}" data-i="${i}"><div class="th"><img src="${x.url}" alt=""></div><div class="tx"><div class="a">${esc(x.t)}</div><div class="b">${DETAIL[x.i%4]} · ${x.coll}</div></div><span class="bdg o"><span>${i===2?'Metadata':'Visual'}</span></span><span class="bdg f"><span>${i===3?'MOV':'JPG'}</span></span></div>`).join('')}</div>
+    <div class="div"><i></i></div>
+    <div class="rw"><div class="lb">Tags</div><div class="cs">${['jacket','outdoor','campaign','winter','puffer','blue','pink','heels','knit'].map(t=>`<span class="chip"><span>${t}</span></span>`).join('')}</div></div>
+    <div class="rw"><div class="lb">Metaproperty</div><div class="cs">${['Season: AW26','Region: EMEA','Channel: Social','Rights: Cleared','Status: Approved'].map(t=>`<span class="chip"><span>${t}</span></span>`).join('')}</div></div>
+    <div class="ask"><a class="askb ${S.spotIdx===ASK?'act':''}" id="askRow">${ic('single-sparkle')}<span>Ask AI about this search</span></a></div>`;
+  }
+  sp.innerHTML = `<div class="s-in">${ic('search')}<input id="sq" value="${esc(S.q)}" placeholder="Search" autocomplete="off" spellcheck="false">${q?`<span id="sx" style="cursor:pointer;display:flex">${ic('clear')}</span>`:''}<button class="aib">${ic('sparkles')}<span>AI Search</span>${ic('caret-sm')}</button></div>
+  <div class="s-ch"><div class="l"><span class="chip cur"><span>${q?n:'All'} Assets</span></span><span class="chip"><span>${q?34:'All'} Collections</span></span><span class="chip"><span>Guidelines</span></span></div><button class="btn"><span class="lbl">Search in: </span><span class="dd">${ic('caret-sm')}</span></button></div>
+  ${body}
+  <div class="sf"><button class="btn">${ic('help')}<span class="lbl">Help</span></button><div class="k"><div class="key">/</div><span class="tt">Search</span><div class="key">${ic('key-up',20)}</div><div class="key">${ic('key-down',20)}</div><span class="tt">Navigate  </span><div class="key">${ic('key-enter',20)}</div><span class="tt">Select</span><div class="key">esc</div><span class="tt">Close</span></div></div>`;
+  const inp=$('#sq'); inp.focus(); const L=inp.value.length; inp.setSelectionRange(L,L);
+  inp.oninput=()=>{ S.q=inp.value; S.spotIdx=-1; renderSpotlight(); };
+  inp.onkeydown=onSpotKey;
+  const sx=$('#sx'); if(sx) sx.onclick=()=>{ S.q=''; S.spotIdx=-1; renderSpotlight(); };
+  sp.querySelectorAll('.li').forEach(r=>{ r.onmouseenter=()=>{ S.spotIdx=+r.dataset.i; markActive(); }; r.onclick=()=>{ setPath('Path: <em>Spotlight, asset row, SERP with assistant closed</em>'); goSerp(S.q); }; });
+  const va=sp.querySelector('[data-viewall]'); if(va) va.onclick=()=>{ setPath('Path: <em>Spotlight, View all, SERP with assistant closed</em>'); goSerp(S.q); };
+  sp.querySelectorAll('[data-recent]').forEach(r=>r.onclick=()=>{ S.q=r.dataset.recent; renderSpotlight(); });
+  const ar=$('#askRow'); if(ar){ ar.onmouseenter=()=>{ S.spotIdx=ASK; markActive(); }; ar.onclick=askAI; }
+}
+function markActive(){ $('#spot').querySelectorAll('.li').forEach(r=>r.classList.toggle('act',+r.dataset.i===S.spotIdx)); const a=$('#askRow'); if(a) a.classList.toggle('act',S.spotIdx===5); }
+function onSpotKey(e){
+  if(e.key==='Escape'){ closeSpotlight(); return; }
+  if(!S.q.trim()){ if(e.key==='Enter') e.preventDefault(); return; }
+  if(e.key==='ArrowDown'){ e.preventDefault(); S.spotIdx=S.spotIdx>=5?0:S.spotIdx+1; markActive(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); S.spotIdx=S.spotIdx<=0?5:S.spotIdx-1; markActive(); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(S.spotIdx===5) askAI(); else { setPath('Path: <em>Spotlight, Enter, SERP with assistant closed</em>'); goSerp(S.q); } }
+}
+function openSpotlight(prefill){ S.q = typeof prefill==='string'?prefill:(S.serpQ||''); S.spotIdx=-1; $('#scrim').classList.add('show'); $('#spot').classList.add('show'); renderSpotlight(); }
+function closeSpotlight(){ $('#scrim').classList.remove('show'); $('#spot').classList.remove('show'); }
+const spotOpen = ()=>$('#spot').classList.contains('show');
+
+/* ---------- Handoff ---------- */
+function askAI(){
+  const q=S.q.trim(); setPath('Path: <em>Spotlight, Ask AI row, SERP with assistant open</em>');
+  S.serpQ=q; S.filters=[]; S.match='both'; S.count=baseCount(q); closeSpotlight();
+  S.thread=[]; S.convFilters=null; S.ctx=q; openPanel();
+}
+function openAssistantFromSerp(src){
+  setPath(src==='soft'?'Path: <em>SERP, soft prompt, assistant open</em>':'Path: <em>SERP, AI Assistant button, assistant open</em>');
+  if(!S.panelOpen){ S.thread=[]; S.convFilters=null; S.ctx=S.serpQ||null; }
+  openPanel();
+}
+function openPanel(){ S.panelOpen=true; $('#panel').classList.add('open'); renderPanel(); renderSerp(); setTimeout(()=>{ const t=$('#msg'); if(t) t.focus(); },320); }
+function closePanel(){ S.panelOpen=false; $('#panel').classList.remove('open'); setPath('Path: <em>SERP, assistant closed</em>'); renderSerp(); }
+
+/* ---------- Assistant ---------- */
+function parseIntent(text,cur){
+  const t=text.toLowerCase(); let f=(cur||[]).slice(); let match=S.match;
+  const set=(p,v)=>{ f=f.filter(x=>!x.startsWith(p)); f.push(p+v); };
+  if(/video|mov|clip/.test(t)) set('Type: ','Video');
+  if(/outdoor|outside/.test(t)) set('Scene: ','outdoors');
+  if(/emea|europe/.test(t)) set('Region: ','EMEA');
+  if(/2025/.test(t)) set('Date: ','2025');
+  if(/visual/.test(t)) match='visual';
+  if(/metadata|tag/.test(t) && !/visual/.test(t)) match='metadata';
+  if(/both|everything|reset/.test(t)) match='both';
+  return {f,match};
+}
+function buildReply(text){
+  const query=(S.ctx||text); const base=baseCount(query);
+  let cur=S.convFilters; if(!cur){ cur=['Type: Image']; cur.push('Tag: '+query.trim().split(/\s+/).slice(-1)[0]); }
+  const {f,match}=parseIntent(text,cur); S.convFilters=f;
+  let n=base; const extra=f.length-2; if(extra>0) n=Math.round(n*Math.pow(.62,extra));
+  if(match==='visual') n=Math.round(n*.45); if(match==='metadata') n=Math.round(n*.56);
+  n=Math.max(4,n); const v=Math.round(n*.43), m=n-v;
+  const why = match==='visual'?'These match on how they look. Some have no matching tags, so metadata alone would miss them.':match==='metadata'?'These match on tags and metadata you already maintain.':`${v} matched on how they look, ${m} matched on tags and metadata.`;
+  const badges = match==='visual'?['Visual']:match==='metadata'?['Metadata']:['Visual','Metadata'];
+  return {id:++S.uid,kind:'ai',query,base,n,filters:f.slice(),match,why,badges,applied:false};
+}
+function send(text){ text=text.trim(); if(!text||S.busy) return; if(!S.ctx) S.ctx=text; S.thread.push({kind:'user',text}); S.busy=true; renderPanel(); setTimeout(()=>{ S.thread.push(buildReply(text)); S.busy=false; renderPanel(); },1300); }
+function applyMsg(m){ S.serpQ = S.serpQ || m.query; S.filters=m.filters.slice(); S.count=m.n; S.match=m.match; m.applied=true; S.thread.push({kind:'sys',text:'Filters applied to grid.'}); setPath('Path: <em>Assistant, Apply to grid, SERP updated</em>'); renderSerp(); renderPanel(); }
+function retryMsg(m){ const i=S.thread.indexOf(m); if(i<0||S.busy) return; S.thread.splice(i,1); S.busy=true; renderPanel(); const lu=[...S.thread].reverse().find(x=>x.kind==='user'); setTimeout(()=>{ S.thread.splice(Math.min(i,S.thread.length),0,buildReply(lu?lu.text:'')); S.busy=false; renderPanel(); },1000); }
+const chipH = (m)=>m.filters.map(f=>`<span class="cch"><span>${esc(f)}</span>${m.applied?'':`<span class="x"><button data-rm="${m.id}" data-f="${esc(f)}" aria-label="Remove ${esc(f)}">${ic('cancel-18',18)}</button></span>`}</span>`).join('');
+function renderPanel(){
+  const pin=$('#pin'); const hasCtx=!!S.ctx; let chat='';
+  if(!S.thread.length && !S.busy){
+    const sugs = hasCtx?['Only show visual matches','Add videos from 2025','Narrow to EMEA']:['Photos of people outdoors','Videos from the last campaign','Assets expiring this month','Only EMEA'];
+    chat = `<div class="intro"><h2>Hello. I'm your AI search partner. What are you looking for?</h2>${hasCtx?`<div class="sub">I can refine “${esc(S.ctx)}”. Describe what to change.</div>`:''}<div class="sugs">${sugs.map((s,i)=>`<button class="sug" data-sug="${esc(s)}">${i===0?ic('single-sparkle'):''}${esc(s)}</button>`).join('')}</div></div>`;
+  } else {
+    chat='<div class="push"></div>';
+    S.thread.forEach(m=>{
+      if(m.kind==='user') chat+=`<div class="uc"><div class="bub">${esc(m.text)}</div></div>`;
+      else if(m.kind==='sys') chat+=`<div class="uc sys"><div class="bub">${esc(m.text)}</div></div>`;
+      else {
+        const lead = m.applied?`Applied. Showing ${m.n} of ${m.base} results.`:`I can narrow ${m.base.toLocaleString('en-US')} results to ${m.n}. Apply these filters?`;
+        const th = rank(m.query).slice(0,3).map(x=>`<img src="${x.url}" alt="">`).join('');
+        chat+=`<div class="aia"><div class="thk"><div class="av">${ic('p-sparkle')}</div><div class="sh"><span>Show thinking</span>${ic('p-caret')}</div></div>
+          <div class="lead">${lead}</div>
+          <div class="resp"><div class="rc"><div class="fcs">${chipH(m)}</div><div class="thm">${th}</div><div class="why">${esc(m.why)}</div><div class="badges">${m.badges.map(badgeHtml).join('')}</div></div>
+          <div class="th-tool"><button class="btn m" data-apply="${m.id}" title="Apply to grid" aria-label="Apply to grid">${ic('arrow-tl')}</button><button class="btn m" data-copy title="Copy link" aria-label="Copy link">${ic('p-copy')}</button></div></div>
+          <div class="act-row"><button class="btn m" data-apply="${m.id}" title="Apply to grid" aria-label="Apply to grid">${ic('arrow-tl')}</button><button class="btn m" data-copy aria-label="Copy link">${ic('p-copy')}</button><button class="btn m" data-retry="${m.id}" title="Retry" aria-label="Retry">${ic('refresh')}</button></div></div>`;
+      }
+    });
+    if(S.busy) chat+=`<div class="aia"><div class="thk"><div class="av">${ic('p-sparkle')}</div><div class="ts"><span class="spin"></span>Thinking</div></div></div>`;
+  }
+  const keep = pin.querySelector('#msg')?pin.querySelector('#msg').value:'';
+  pin.innerHTML = `<div class="ph-h"><span class="t">AI Assistant</span><button class="btn m" id="newChat" title="New conversation" aria-label="New conversation">${ic('conversation')}</button><button class="btn m" id="closeP" title="Close" aria-label="Close">${ic('cancel')}</button></div>
+  <div class="chat" id="chat">${chat}</div>
+  <div class="pfoot"><div class="ibox"><div class="ta">${hasCtx?`<div class="ctx"><span class="cch">${ic('text')}<span>Search: ${esc(S.ctx)}</span><span class="x"><button id="rmCtx" aria-label="Remove context">${ic('cancel-sm',18)}</button></span></span></div>`:''}
+    <textarea id="msg" placeholder="${hasCtx?'Ask anything...':'Describe what you’re looking for...'}" aria-label="Message">${esc(keep)}</textarea></div>
+    <div class="ft"><button class="send" id="sendBtn" aria-label="Send">${ic('arrow-fwd')}</button></div></div>
+    <div class="helpt">AI-powered, human-refined. Please review for accuracy. <a>How it works</a> | <a id="fbLink">Submit feedback</a></div></div>`;
+  const c=$('#chat'); c.scrollTop=c.scrollHeight;
+  const msg=$('#msg'), sb=$('#sendBtn'); const upd=()=>{ sb.disabled=S.busy||!msg.value.trim(); }; upd(); msg.oninput=upd;
+  msg.onkeydown=e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); if(!sb.disabled){ const v=msg.value; msg.value=''; send(v); } } };
+  sb.onclick=()=>{ const v=msg.value; msg.value=''; send(v); };
+  $('#closeP').onclick=closePanel;
+  $('#newChat').onclick=()=>{ S.thread=[]; S.convFilters=null; S.busy=false; renderPanel(); };
+  const rc=$('#rmCtx'); if(rc) rc.onclick=()=>{ S.ctx=null; S.convFilters=null; renderPanel(); };
+  pin.querySelectorAll('[data-sug]').forEach(b=>b.onclick=()=>send(b.dataset.sug));
+  pin.querySelectorAll('[data-apply]').forEach(b=>b.onclick=()=>{ const m=S.thread.find(x=>x.id==b.dataset.apply); if(m&&!m.applied) applyMsg(m); });
+  pin.querySelectorAll('[data-retry]').forEach(b=>b.onclick=()=>{ const m=S.thread.find(x=>x.id==b.dataset.retry); if(m) retryMsg(m); });
+  pin.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{ try{ navigator.clipboard.writeText(location.href.split('#')[0]+'#search='+encodeURIComponent(S.serpQ)); }catch(e){} toast('Link copied'); });
+  pin.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ const m=S.thread.find(x=>x.id==b.dataset.rm); if(!m) return; m.filters=m.filters.filter(f=>f!==b.dataset.f); S.convFilters=m.filters.slice(); renderPanel(); });
+  $('#fbLink').onclick=openFeedback;
+}
+
+/* ---------- Feedback modal ---------- */
+function openFeedback(){
+  $('#modal').innerHTML=`<div class="mhd"><span>Submit feedback</span><button class="btn m" id="mx" aria-label="Close">${ic('cancel')}</button></div><div class="mc"><div style="font-size:16px;line-height:24px">This feedback is shared with our teams to prioritize fixes and model improvements.</div><textarea placeholder="Briefly describe your feedback here."></textarea></div><div class="mf"><button class="btn m sec" id="mc"><span class="lbl">Cancel</span></button><button class="btn m pri" id="ms"><span class="lbl">Submit</span></button></div>`;
+  $('#modalbg').classList.add('show'); $('#mx').onclick=$('#mc').onclick=()=>$('#modalbg').classList.remove('show');
+  $('#ms').onclick=()=>{ $('#modal').innerHTML=`<div class="mhd"><span>Feedback submitted</span><button class="btn m" id="mx2" aria-label="Close">${ic('cancel')}</button></div><div class="mc"><div style="font-size:16px;line-height:24px">Thanks. Your feedback helps us improve AI-powered search.</div></div><div class="mf"><button class="btn m pri" id="mo"><span class="lbl">Close</span></button></div>`; $('#mx2').onclick=$('#mo').onclick=()=>$('#modalbg').classList.remove('show'); };
+}
+
+/* ---------- Wiring ---------- */
+$('#searchBar').onclick=()=>openSpotlight();
+$('#searchBar').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openSpotlight(); } };
+$('#scrim').onclick=closeSpotlight;
+$('#aiBtn').onclick=()=>{ if(S.panelOpen) closePanel(); else openAssistantFromSerp('btn'); };
+$('#softBtn').onclick=()=>openAssistantFromSerp('soft');
+document.addEventListener('keydown',e=>{
+  if(e.key==='/' && !spotOpen() && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); openSpotlight(); }
+  else if(e.key==='Escape'){ if($('#modalbg').classList.contains('show')) $('#modalbg').classList.remove('show'); else if(spotOpen()) closeSpotlight(); }
+});
+function reset(q){ S.thread=[]; S.ctx=null; S.convFilters=null; S.filters=[]; S.match='both'; S.busy=false; S.panelOpen=false; $('#panel').classList.remove('open'); closeSpotlight(); S.serpQ=q; S.count=baseCount(q); renderSerp(); }
+$('#startSerp').onclick=()=>{ reset('jacket'); setPath('Start: <em>SERP for “jacket”</em>. Click AI Assistant, the soft prompt, or the search bar'); };
+$('#startSpot').onclick=()=>{ reset(''); setPath('Start: <em>Spotlight</em>. Type a query, arrow down to Ask AI, press Enter'); openSpotlight(''); };
+reset('jacket'); setPath('Start: <em>SERP for “jacket”</em>. Click AI Assistant, the soft prompt, or the search bar');
+})();
+</script>
+</body>
+</html>
